@@ -109,6 +109,7 @@ app.whenReady().then(() => {
   ipcMain.handle('dream-skin:apply-theme', (_event, themeId: string) => controller.applyTheme(themeId));
   ipcMain.handle('dream-skin:connect', (_event, restartExisting: boolean) => controller.connect(restartExisting));
   ipcMain.handle('dream-skin:disconnect', () => controller.disconnect());
+  ipcMain.handle('dream-skin:refresh-themes', () => controller.refreshThemesNow());
 });
 
 app.on('window-all-closed', () => {

@@ -19,6 +19,7 @@ export class DreamSkinController extends EventEmitter {
   private themes: ThemeSummary[] = [];
   private activeThemeId: string | null = null;
   private pollTimer: NodeJS.Timeout | null = null;
+  private polling = false;
   private stopped = false;
   private injectionManager: InjectionManager | null = null;
   private cdpPort: number | null = null;
@@ -64,6 +65,12 @@ export class DreamSkinController extends EventEmitter {
     };
   }
 
+  async refreshThemesNow(): Promise<RendererSnapshot> {
+    await this.refreshThemes();
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
   private emitSnapshot(): void {
     this.emit('snapshot', this.getSnapshot());
   }
@@ -83,38 +90,50 @@ export class DreamSkinController extends EventEmitter {
   }
 
   private async poll(): Promise<void> {
-    if (this.stopped || this.busy) return;
-    if (this.connection.status === 'connected') {
-      const still = await detectCodex(CDP_PORT).catch((): DetectResult | null => null);
-      if (still?.cdpActive) return;
-      this.stopInjectionManager();
-      this.connection = { status: 'not-running' };
+    // detect can take up to ~20s on some machines (see codex-bridge.ts); the
+    // 4s interval must not stack overlapping PowerShell spawns on top of it.
+    if (this.stopped || this.busy || this.polling) return;
+    this.polling = true;
+    try {
+      // Exactly one detectCodex call per cycle. The previous version ran a
+      // "recheck" detect while connected and, on any transient miss, emitted
+      // a demoted 'not-running' snapshot before immediately re-detecting and
+      // often flipping straight back to 'connected' -- that's what produced
+      // the connect/disconnect flicker in the UI.
+      const result = await detectCodex(CDP_PORT).catch((err: Error): DetectResult | null => {
+        // detectCodex only re-verifies package identity via bridge.ps1; it can
+        // time out on a slow CIM session while the live injection WebSocket
+        // (ground truth for whether theming actually works) is still healthy.
+        // Keep showing 'connected' rather than downgrading on a false alarm.
+        if (this.connection.status === 'connected' && this.injectionManager?.isSessionAlive()) {
+          return null;
+        }
+        this.connection = { status: 'error', message: err.message };
+        return null;
+      });
+      if (!result) { this.emitSnapshot(); return; }
+      if (!result.installed) {
+        this.connection = { status: 'not-installed' };
+        this.emitSnapshot();
+        return;
+      }
+      if (result.cdpActive && result.browserId) {
+        const port = result.port ?? CDP_PORT;
+        this.connection = { status: 'connected', port, browserId: result.browserId };
+        await this.startInjectionManagerIfNeeded(port, result.browserId);
+        this.emitSnapshot();
+        return;
+      }
+      if (this.connection.status === 'connected') this.stopInjectionManager();
+      if (!result.running) {
+        await this.connect(false);
+        return;
+      }
+      this.connection = { status: 'running-unthemed' };
       this.emitSnapshot();
+    } finally {
+      this.polling = false;
     }
-
-    const result = await detectCodex(CDP_PORT).catch((err: Error): DetectResult | null => {
-      this.connection = { status: 'error', message: err.message };
-      return null;
-    });
-    if (!result) { this.emitSnapshot(); return; }
-    if (!result.installed) {
-      this.connection = { status: 'not-installed' };
-      this.emitSnapshot();
-      return;
-    }
-    if (result.cdpActive && result.browserId) {
-      const port = result.port ?? CDP_PORT;
-      this.connection = { status: 'connected', port, browserId: result.browserId };
-      await this.startInjectionManagerIfNeeded(port, result.browserId);
-      this.emitSnapshot();
-      return;
-    }
-    if (!result.running) {
-      await this.connect(false);
-      return;
-    }
-    this.connection = { status: 'running-unthemed' };
-    this.emitSnapshot();
   }
 
   async connect(restartExisting: boolean): Promise<{ ok: boolean; error?: string }> {

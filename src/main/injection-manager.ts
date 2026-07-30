@@ -218,6 +218,14 @@ export class InjectionManager {
     }
   }
 
+  // Ground truth for whether theming is actually working right now --
+  // independent of bridge.ps1's detect call, which only re-verifies package
+  // identity and can time out on a slow CIM session even while this live
+  // WebSocket keeps working fine.
+  isSessionAlive(): boolean {
+    return !this.stopped && this.session !== null && !this.session.closed;
+  }
+
   private async inject(themeDir: string): Promise<{ ok: boolean; error?: string }> {
     if (!this.loadPayloadFn) return { ok: false, error: 'InjectionManager not started' };
     if (!this.session || this.session.closed) return { ok: false, error: 'No active CDP session' };

@@ -28,6 +28,7 @@ export interface DreamSkinApi {
   applyTheme(themeId: string): Promise<{ ok: boolean; error?: string }>;
   connectCodex(restartExisting: boolean): Promise<{ ok: boolean; error?: string }>;
   disconnectCodex(): Promise<{ ok: boolean }>;
+  refreshThemes(): Promise<RendererSnapshot>;
 }
 
 declare global {

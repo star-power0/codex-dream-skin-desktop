@@ -38,7 +38,7 @@ export function ConnectionBar({ connection, busy }: { connection: CodexConnectio
       {connection.status === 'error' && (
         <span className="status-detail">{connection.message}</span>
       )}
-      {connection.status === 'running-unthemed' && (
+      {(connection.status === 'running-unthemed' || connection.status === 'error') && (
         <button
           className="primary-action"
           disabled={busy}

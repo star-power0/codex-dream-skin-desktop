@@ -11,6 +11,7 @@ const api: DreamSkinApi = {
   applyTheme: (themeId: string) => ipcRenderer.invoke('dream-skin:apply-theme', themeId),
   connectCodex: (restartExisting: boolean) => ipcRenderer.invoke('dream-skin:connect', restartExisting),
   disconnectCodex: () => ipcRenderer.invoke('dream-skin:disconnect'),
+  refreshThemes: () => ipcRenderer.invoke('dream-skin:refresh-themes'),
 };
 
 contextBridge.exposeInMainWorld('dreamSkin', api);

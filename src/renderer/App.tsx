@@ -12,11 +12,21 @@ const EMPTY_SNAPSHOT: RendererSnapshot = {
 
 export function App() {
   const [snapshot, setSnapshot] = useState<RendererSnapshot>(EMPTY_SNAPSHOT);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     void window.dreamSkin.getSnapshot().then(setSnapshot);
     return window.dreamSkin.onSnapshot(setSnapshot);
   }, []);
+
+  async function handleRefreshThemes() {
+    setRefreshing(true);
+    try {
+      setSnapshot(await window.dreamSkin.refreshThemes());
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   return (
     <div className="app-shell">
@@ -28,7 +38,17 @@ export function App() {
             <p className="brand-sub">给 Codex 桌面端换一张会呼吸的脸</p>
           </div>
         </div>
-        <ConnectionBar connection={snapshot.connection} busy={snapshot.busy} />
+        <div className="header-actions">
+          <button
+            type="button"
+            className="secondary-action"
+            disabled={refreshing}
+            onClick={handleRefreshThemes}
+          >
+            {refreshing ? '正在刷新…' : '刷新主题库'}
+          </button>
+          <ConnectionBar connection={snapshot.connection} busy={snapshot.busy} />
+        </div>
       </header>
       <main className="app-main">
         <ThemeGallery themes={snapshot.themes} busy={snapshot.busy} />

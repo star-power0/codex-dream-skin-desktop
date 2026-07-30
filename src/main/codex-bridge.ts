@@ -65,8 +65,11 @@ export interface StartResult {
 
 const DEFAULT_PORT = 9335;
 
+// bridge.ps1's own comment documents a 15-20s cold-start cost for the
+// Get-NetTCPConnection CIM session on some machines; 10s was tighter than
+// that worst case and produced false "connection error" reports mid-poll.
 export function detectCodex(port = DEFAULT_PORT): Promise<DetectResult> {
-  return runPowerShell(['detect', '-Port', String(port)], 10_000);
+  return runPowerShell(['detect', '-Port', String(port)], 20_000);
 }
 
 export function startCodexTheming(port = DEFAULT_PORT, restartExisting = false): Promise<StartResult> {
