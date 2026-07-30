@@ -1,0 +1,63 @@
+[data-ds-part="root"] {
+  color: var(--ds-theme-color-text);
+}
+
+[data-ds-part="main"] {
+  background-color: transparent;
+}
+
+[data-ds-part="sidebar"] {
+  background-color: rgba(23, 44, 39, 0.72);
+  border-radius: var(--ds-theme-surface-radius);
+  backdrop-filter: blur(0px);
+  box-shadow: 2px 0 16px rgba(5, 18, 15, 0.28);
+}
+
+[data-ds-part="header"] {
+  background-color: rgba(40, 48, 56, 0.44);
+  border-bottom-color: var(--ds-theme-color-line);
+  border-bottom-style: solid;
+  border-bottom-width: 1px;
+  backdrop-filter: blur(0px);
+}
+
+[data-ds-part="thread"] {
+  color: var(--ds-theme-color-text);
+}
+
+[data-ds-part="message"] {
+  color: var(--ds-theme-color-text);
+}
+
+[data-ds-part="composer"] {
+  background-color: rgba(40, 48, 56, 0.78);
+  border-color: var(--ds-theme-color-line);
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 16px;
+  box-shadow: 0 5px 18px rgba(5, 18, 15, 0.28);
+  backdrop-filter: blur(12px);
+}
+
+[data-ds-part="composer"]:focus-visible {
+  border-color: var(--ds-theme-color-secondary);
+}
+
+[data-ds-part="composer-toolbar"] {
+  color: var(--ds-theme-color-muted);
+}
+
+[data-ds-part="composer-toolbar"]:hover {
+  color: var(--ds-theme-color-secondary);
+  box-shadow: inset 0 -1px 0 var(--ds-theme-color-accent-alt);
+}
+
+[data-ds-part="dialog"] {
+  background-color: rgba(40, 48, 56, 0.82);
+  border-color: var(--ds-theme-color-highlight);
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 16px;
+  box-shadow: 0 10px 32px rgba(5, 18, 15, 0.34);
+  backdrop-filter: blur(16px);
+}

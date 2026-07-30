@@ -1,0 +1,58 @@
+[data-ds-part="root"] {
+  color: var(--ds-theme-color-text);
+}
+
+[data-ds-part="main"] {
+  background-color: transparent;
+}
+
+[data-ds-part="sidebar"] {
+  background-color: var(--ds-theme-color-panel);
+  border-radius: var(--ds-theme-surface-radius);
+  backdrop-filter: blur(0px);
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.14);
+}
+
+[data-ds-part="header"] {
+  background-color: var(--ds-theme-color-panel);
+  border-bottom-color: var(--ds-theme-color-line);
+  border-bottom-style: solid;
+  border-bottom-width: 1px;
+  backdrop-filter: blur(0px);
+}
+
+[data-ds-part="thread"] {
+  color: var(--ds-theme-color-text);
+}
+
+[data-ds-part="message"] {
+  color: var(--ds-theme-color-text);
+}
+
+[data-ds-part="composer"] {
+  background-color: var(--ds-theme-color-panel);
+  border-color: var(--ds-theme-color-line);
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(12px);
+}
+
+[data-ds-part="composer"]:focus-visible {
+  border-color: var(--ds-theme-color-secondary);
+}
+
+[data-ds-part="composer-toolbar"] {
+  color: var(--ds-theme-color-muted);
+}
+
+[data-ds-part="dialog"] {
+  background-color: var(--ds-theme-color-panel);
+  border-color: var(--ds-theme-color-highlight);
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.20);
+  backdrop-filter: blur(16px);
+}

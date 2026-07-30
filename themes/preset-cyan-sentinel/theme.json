@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-cyan-sentinel",
+  "name": "Cyan Sentinel",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A precision AI guardian for focused deep work.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "◉  Select project",
+  "statusText": "SENTINEL ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.png",
+  "appearance": "auto",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "colors": {
+    "background": "#0b0e12",
+    "panel": "#141a21",
+    "panelAlt": "#1b232c",
+    "accent": "#3ec9ff",
+    "accentAlt": "#7adfff",
+    "secondary": "#e66a6a",
+    "highlight": "#b873ff",
+    "text": "#e8eef3",
+    "muted": "#8fa0ad",
+    "line": "rgba(62, 201, 255, .28)"
+  },
+  "promoTitle": "Codex Dream Skin",
+  "promoSub": "Cyan Sentinel",
+  "promoUrl": "https://github.com/Fei-Away/Codex-Dream-Skin"
+}

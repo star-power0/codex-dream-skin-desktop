@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "xiaoxiao-hunan-night-festival",
+  "name": "小宵虎南·夜祭冷雅",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "竹影垂风，夏夜正好。",
+  "projectPrefix": "选择项目 · ",
+  "projectLabel": "◉  选择项目",
+  "statusText": "NIGHT FESTIVAL ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.png",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.52,
+    "safeArea": "left",
+    "taskMode": "full"
+  },
+  "colors": {
+    "background": "#263432",
+    "panel": "#39414b",
+    "panelAlt": "#505a68",
+    "sidebar": "#172c27",
+    "accent": "#b8a6d5",
+    "accentAlt": "#dac9e8",
+    "secondary": "#78c6c1",
+    "highlight": "#e4bd62",
+    "text": "#eee8f6",
+    "muted": "#c7bfd2",
+    "line": "rgba(184, 166, 213, 0.30)"
+  }
+}
