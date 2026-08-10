@@ -2,11 +2,13 @@
 
 常驻 Electron 桌面工具，给 [Codex](https://openai.com/codex/) 桌面客户端实时换肤：本机 CDP 注入，不修改官方安装包，不需要每次重开 Codex 都手动重新操作。
 
+**推荐搭配**：与 [Codex++ Lite（无内置 Dream Skin）](https://github.com/star-power0/CodexPlusPlus-no-dream-skin) 一起使用——Lite 负责启动 Codex、供应商与增强管理，本工具负责主题注入。两者是配套项目，安装包见各自的 GitHub Releases。
+
 非 OpenAI 官方产品。基于 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)（MIT License）开发，详见下方「与上游项目的关系」和 [NOTICE.md](./NOTICE.md)。
 
 ## 它能做什么
 
-- **常驻检测**：轮询 Codex 安装状态与 CDP 调试端口，检测到 CodexBridge 启动的 Codex 未运行时自动带调试参数拉起并注入当前主题；也可自动附加到 Codex++ 已启动的 Codex。
+- **常驻检测**：轮询 Codex 安装状态与 CDP 调试端口，自动附加到 [Codex++ Lite](https://github.com/star-power0/CodexPlusPlus-no-dream-skin) 启动的 Codex（推荐路径）；旧 CodexBridge 启动的 Codex 仍兼容（自动带调试参数拉起并注入当前主题）。
 - **系统托盘 + 主窗口画廊**：深色沉浸式卡片界面展示所有已保存主题，点击直接切换,当前使用主题有「正在使用」角标。
 - **实时切换,不用重启 Codex**：主进程直连 Chrome DevTools Protocol，`Runtime.evaluate` 直接把主题 payload 推给 Codex renderer。
 - **可扩展主题库**：主题文件存在 `%LOCALAPPDATA%\CodexDreamSkin\themes\`，跟应用/项目源码完全解耦，装到哪个盘、迁移项目都不受影响。
@@ -20,13 +22,19 @@ npm run start
 
 首次运行需要让 Codex 以调试参数重启一次（应用会自动处理），之后每次启动都会自动检测并注入当前主题。
 
-### 与 Codex++ 一起使用
+### 与 Codex++ Lite 搭配（推荐）
 
-本项目支持 [Codex++ no-dream-skin fork](https://github.com/star-power0/CodexPlusPlus-no-dream-skin) 启动的 Codex。启动顺序是先从无内置 Dream Skin 的 Codex++ fork 打开 Codex，本应用随后以 attach-only 方式自动附加；不会调用 CodexBridge 的启动或停止脚本，也不会修改 Codex++ 的设置、安装目录或主题文件。
+本工具与 [Codex++ Lite（无内置 Dream Skin）](https://github.com/star-power0/CodexPlusPlus-no-dream-skin) 是配套项目，同属一套使用流程：
+
+1. 安装并启动 Codex++ Lite（从它的 GitHub Releases 下载，不要用官方带内置皮肤版本）；
+2. 从 Codex++ Lite 启动 Codex；
+3. 启动本工具，自动附加并注入主题。
+
+Codex++ Lite 已完整移除内置 Dream Skin，因此本工具只运行自己的一套主题注入 runtime，不存在两个皮肤 runtime 互相覆盖导致的闪烁；本工具也不会调用或接管任何 Codex++ 清理钩子，不会修改 Codex++ 的设置、安装目录或主题文件。
 
 Codex++ 默认使用 `9229`，但 Windows 端口冲突时会换成临时端口。本应用把 `%USERPROFILE%\.codex-session-delete\latest-status.json` 的 `debug_port` 仅作为候选提示，仍会重新校验本机 CDP 的 `/json/version`、`/json/list`、浏览器 ID、主 renderer target 和 loopback WebSocket 地址后才注入。
 
-本应用只运行自己的一套主题注入 runtime，不再调用或接管 Codex++ 的旧 Dream Skin 清理钩子。Codex++ 的主题管理已从维护 fork 中移除，因此不会再出现两个皮肤 runtime 互相覆盖导致的闪烁。
+> **CodexBridge 是旧方案**：早期版本通过 CodexBridge 启动/停止 Codex，现在仍保留兼容（`9335` 端口路径），但已不再是推荐用法。
 
 打包成可分发的安装程序：
 
