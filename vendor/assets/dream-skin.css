@@ -999,14 +999,61 @@ html[data-dream-skin="active"][data-dream-art-wide="true"]:has(main.main-surface
   background: transparent !important;
 }
 
-html[data-dream-skin="active"][data-dream-art-wide="true"] main.main-surface:has([role="main"]) {
-  background: linear-gradient(90deg,
-    var(--ds-immersive-edge),
-    var(--ds-immersive-mid) 64%,
-    var(--ds-immersive-far)) !important;
+html[data-dream-skin="active"] :is(main.main-surface, main[class*="MainContentSurface"]):has([role="main"]) {
+  position: relative !important;
+  isolation: isolate;
+  background: transparent !important;
   border: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
+}
+
+html[data-dream-skin="active"] :is(main.main-surface, main[class*="MainContentSurface"]):has([role="main"])::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: linear-gradient(90deg,
+      var(--ds-immersive-edge),
+      var(--ds-immersive-mid) 64%,
+      var(--ds-immersive-far)),
+    var(--dream-skin-art);
+  background-position: center, var(--ds-art-position);
+  background-size: 100% 100%, cover;
+  background-repeat: no-repeat;
+}
+
+html[data-dream-skin="active"] :is(main.main-surface, main[class*="MainContentSurface"]):has([role="main"])
+  > :not(header.app-header-tint) {
+  position: relative;
+  z-index: 1;
+  background-color: transparent !important;
+}
+
+/* Codex++ 1.2.45 uses a generated MainContentSurface class and does not expose
+   the older [role="main"] anchor on the outer surface. Keep the wallpaper on
+   the actual visible shell even when that route contract is absent. */
+html[data-dream-skin="active"] :is(main[class*="MainContentSurface"], main.main-surface) {
+  position: relative !important;
+  isolation: isolate;
+  background-color: transparent !important;
+}
+
+html[data-dream-skin="active"] :is(main[class*="MainContentSurface"], main.main-surface)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: linear-gradient(90deg,
+      var(--ds-immersive-edge),
+      var(--ds-immersive-mid) 64%,
+      var(--ds-immersive-far)),
+    var(--dream-skin-art);
+  background-position: center, var(--ds-art-position);
+  background-size: 100% 100%, cover;
+  background-repeat: no-repeat;
 }
 
 html[data-dream-skin="active"][data-dream-art-wide="true"] main.main-surface:has([role="main"])

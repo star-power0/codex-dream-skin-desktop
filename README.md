@@ -6,7 +6,7 @@
 
 ## 它能做什么
 
-- **常驻检测**：轮询 Codex 安装状态与 CDP 调试端口，检测到 Codex 未运行时自动带调试参数拉起并注入当前主题，不用手动点「应用」。
+- **常驻检测**：轮询 Codex 安装状态与 CDP 调试端口，检测到 CodexBridge 启动的 Codex 未运行时自动带调试参数拉起并注入当前主题；也可自动附加到 Codex++ 已启动的 Codex。
 - **系统托盘 + 主窗口画廊**：深色沉浸式卡片界面展示所有已保存主题，点击直接切换,当前使用主题有「正在使用」角标。
 - **实时切换,不用重启 Codex**：主进程直连 Chrome DevTools Protocol，`Runtime.evaluate` 直接把主题 payload 推给 Codex renderer。
 - **可扩展主题库**：主题文件存在 `%LOCALAPPDATA%\CodexDreamSkin\themes\`，跟应用/项目源码完全解耦，装到哪个盘、迁移项目都不受影响。
@@ -19,6 +19,14 @@ npm run start
 ```
 
 首次运行需要让 Codex 以调试参数重启一次（应用会自动处理），之后每次启动都会自动检测并注入当前主题。
+
+### 与 Codex++ 一起使用
+
+本项目支持 [Codex++ no-dream-skin fork](https://github.com/star-power0/CodexPlusPlus-no-dream-skin) 启动的 Codex。启动顺序是先从无内置 Dream Skin 的 Codex++ fork 打开 Codex，本应用随后以 attach-only 方式自动附加；不会调用 CodexBridge 的启动或停止脚本，也不会修改 Codex++ 的设置、安装目录或主题文件。
+
+Codex++ 默认使用 `9229`，但 Windows 端口冲突时会换成临时端口。本应用把 `%USERPROFILE%\.codex-session-delete\latest-status.json` 的 `debug_port` 仅作为候选提示，仍会重新校验本机 CDP 的 `/json/version`、`/json/list`、浏览器 ID、主 renderer target 和 loopback WebSocket 地址后才注入。
+
+本应用只运行自己的一套主题注入 runtime，不再调用或接管 Codex++ 的旧 Dream Skin 清理钩子。Codex++ 的主题管理已从维护 fork 中移除，因此不会再出现两个皮肤 runtime 互相覆盖导致的闪烁。
 
 打包成可分发的安装程序：
 

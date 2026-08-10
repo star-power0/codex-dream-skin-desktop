@@ -1,11 +1,45 @@
 # Changelog
 
+## 1.1.0 — 2026-08-10（Codex++ no-dream-skin 支持）
+
+### 新增
+
+- 支持附加到 `CodexPlusPlus-no-dream-skin` 启动的 Codex：从 `latest-status.json` 读取动态 CDP 端口提示，并重新验证 browser identity、主 renderer target 和 loopback WebSocket。
+- 主题壁纸兼容 Codex++ 1.2.45 当前的 `MainContentSurface` DOM，保留图片 Blob URL 注入和可读性遮罩。
+
+### 修复
+
+- 移除 Codex++ takeover、清理钩子和所有权轮询；皮肤工具只运行自己的一套主题 runtime，避免两个 runtime 互相覆盖导致闪烁。
+- Codex++ host 改为 attach-only：必须先从 Codex++ 启动 Codex，皮肤工具不会接管或修改 Codex++ 安装。
+
+### 验证
+
+- `npm test`：7 个测试通过。
+- `npm run lint`：通过。
+- `npm run package`：Windows x64 打包通过。
+
 ## 上游参考
 
 原项目（`vendor/` 里 `injector.mjs`/`bridge.ps1`/`selectors.json` 等的来源，未做修改直接拷贝）：
 <https://github.com/Fei-Away/Codex-Dream-Skin>
 
 本项目工作区曾保留过该项目源码副本（`A:\ClaudeWorkspace\CodexDreamSkin`），已删除；后续如需追新版本改动、对照原始实现，去上面的地址看。
+
+## 未发布 — 2026-08-09（Codex++ 外部附加）
+
+### 新增
+
+- 支持附加到 [BigPizzaV3/CodexPlusPlus](https://github.com/BigPizzaV3/CodexPlusPlus) 启动的 Codex：读取 `%USERPROFILE%\.codex-session-delete\latest-status.json` 取得动态 `debug_port` 候选，优先顺序为该端口、Codex++ 默认 `9229`、旧 CodexBridge `9335`。
+- 新增 CDP endpoint 预检：仅接受 loopback `ws:`/`wss:` URL 且 URL 端口必须和探测端口一致；同时验证 `/json/version` 的 browser ID 和 `/json/list` 中的主 Codex renderer，拒绝普通 HTTP 服务、远程地址、avatar overlay 与 quick-chat target。
+- 接管 Codex++ 内置 Dream Skin：确认 Codex++ renderer marker 后才调用其 `window.__CODEX_PLUS_CLEAR_DREAM_SKIN__` 钩子，随后注入本应用已选主题并记录外部 owner 标记。不会修改 Codex++ 设置、主题偏好、安装目录或官方 Codex 安装包。
+- renderer 重新创建或 Codex++ 再次写入内置皮肤时，常驻 CDP 会话检测 owner/revision 失效并重新执行上述受限接管过程。
+- 连接状态和托盘状态显示当前 host 与已验证 CDP 端口；Codex++ 未运行时显示“从 Codex++ 启动”的提示，不会错误调用 CodexBridge 的 `bridge.ps1 start/stop`。
+- 新增 `node:test` 覆盖状态文件端口解析、端口候选排序、CDP WebSocket 约束、Codex target 选择和动态端口 endpoint 验证。
+
+### 保持兼容
+
+- 原有 CodexBridge `9335` 探测、自动启动和停止路径保留不变。仅当连接到 Codex++ host 时改为 attach-only。
+- `vendor/` 的主题 schema、CSS、payload 编译器和现有主题目录结构没有修改。
 
 ## 未发布 — 2026-07-30（第二轮：主题库刷新 + 连接状态闪烁/误报）
 
