@@ -71,7 +71,9 @@ function createTray(): void {
 function refreshTrayMenu(): void {
   if (!tray) return;
   const snapshot = controller.getSnapshot();
-  const connected = snapshot.connection.status === 'connected';
+  const connectionLabel = snapshot.connection.status === 'connected'
+    ? `已连接 ${snapshot.connection.host === 'codexplusplus' ? 'Codex++' : 'Codex'} · ${snapshot.connection.port}`
+    : '未连接 Codex';
   const themeItems = snapshot.themes.map((theme) => ({
     label: theme.name,
     type: 'radio' as const,
@@ -82,7 +84,7 @@ function refreshTrayMenu(): void {
   tray?.setContextMenu(Menu.buildFromTemplate([
     { label: '打开主题库', click: () => mainWindow?.show() },
     { type: 'separator' },
-    { label: connected ? '已连接 Codex' : '未连接 Codex', enabled: false },
+    { label: connectionLabel, enabled: false },
     { label: '切换主题', submenu: themeItems.length > 0 ? themeItems : [{ label: '暂无已保存主题', enabled: false }] },
     { type: 'separator' },
     { label: '退出', click: () => { isQuitting = true; app.quit(); } },

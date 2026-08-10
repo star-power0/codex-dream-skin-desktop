@@ -11,7 +11,7 @@ function vendorPath(...segments: string[]): string {
   return path.join(base, ...segments);
 }
 
-function runPowerShell(args: string[], timeoutMs = 60_000): Promise<any> {
+function runPowerShell<T>(args: string[], timeoutMs = 60_000): Promise<T> {
   return new Promise((resolve, reject) => {
     const child = spawn(
       'powershell.exe',
@@ -34,7 +34,7 @@ function runPowerShell(args: string[], timeoutMs = 60_000): Promise<any> {
       clearTimeout(timer);
       const line = stdout.trim().split('\n').pop() ?? '';
       try {
-        resolve(JSON.parse(line));
+        resolve(JSON.parse(line) as T);
       } catch {
         reject(new Error(stderr.trim() || stdout.trim() || 'bridge.ps1 produced no output'));
       }
@@ -64,20 +64,38 @@ export interface StartResult {
 }
 
 const DEFAULT_PORT = 9335;
+// Codex++ launches the official renderer on its own CDP port. Keep the
+// original Dream Skin port first, then probe the Codex++ default so an
+// already-running Codex++ session can be themed without a second launch.
+export const CDP_PORT_CANDIDATES = [DEFAULT_PORT, 9229] as const;
 
 // bridge.ps1's own comment documents a 15-20s cold-start cost for the
 // Get-NetTCPConnection CIM session on some machines; 10s was tighter than
 // that worst case and produced false "connection error" reports mid-poll.
 export function detectCodex(port = DEFAULT_PORT): Promise<DetectResult> {
-  return runPowerShell(['detect', '-Port', String(port)], 20_000);
+  return runPowerShell<DetectResult>(['detect', '-Port', String(port)], 20_000);
+}
+
+export async function detectCodexAny(): Promise<DetectResult> {
+  const results = await Promise.all(CDP_PORT_CANDIDATES.map((port) =>
+    detectCodex(port).catch((error: Error): DetectResult => ({
+      ok: false,
+      installed: true,
+      error: error.message,
+      port,
+    })),
+  ));
+  return results.find((result) => result.cdpActive && result.browserId)
+    ?? results.find((result) => result.running)
+    ?? results[0];
 }
 
 export function startCodexTheming(port = DEFAULT_PORT, restartExisting = false): Promise<StartResult> {
   const args = ['start', '-Port', String(port)];
   if (restartExisting) args.push('-RestartExisting');
-  return runPowerShell(args, 60_000);
+  return runPowerShell<StartResult>(args, 60_000);
 }
 
 export function stopCodexTheming(port = DEFAULT_PORT): Promise<{ ok: boolean; stopped?: boolean; error?: string }> {
-  return runPowerShell(['stop', '-Port', String(port)], 30_000);
+  return runPowerShell<{ ok: boolean; stopped?: boolean; error?: string }>(['stop', '-Port', String(port)], 30_000);
 }

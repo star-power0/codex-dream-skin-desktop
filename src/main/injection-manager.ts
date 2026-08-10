@@ -1,8 +1,8 @@
-import fs from 'node:fs/promises';
 import path from 'node:path';
 import { app } from 'electron';
+import type { VerifiedCdpEndpoint } from './cdp-discovery';
+import { probeCdpEndpoint } from './cdp-discovery';
 
-// Resolve vendor path the same way codex-bridge does.
 function vendorPath(...segments: string[]): string {
   const base = app.isPackaged
     ? path.join(process.resourcesPath, 'vendor')
@@ -10,40 +10,12 @@ function vendorPath(...segments: string[]): string {
   return path.join(base, ...segments);
 }
 
-// Dynamically import loadPayload from the vendored injector at runtime.
 async function importLoadPayload(): Promise<(themeDir: string) => Promise<{ payload: string; revision: string }>> {
   const injectorPath = vendorPath('scripts', 'injector.mjs');
   const mod = await import(/* webpackIgnore: true */ `file:///${injectorPath.replace(/\\/g, '/')}`);
   return mod.loadPayload;
 }
 
-interface SelectorEntry { key: string; selector: string; tier: string; required: boolean }
-
-// Loaded once from vendor's selectors.json (the same file the vendored
-// injector.mjs itself reads) so the Codex-shell probe below uses the exact
-// same anchors instead of a hand-guessed selector list.
-let codexShellSelectorsCache: string[] | null = null;
-async function codexShellSelectors(): Promise<string[]> {
-  if (codexShellSelectorsCache) return codexShellSelectorsCache;
-  const raw = await fs.readFile(vendorPath('assets', 'selectors.json'), 'utf8');
-  const doc = JSON.parse(raw) as { selectors: SelectorEntry[] };
-  codexShellSelectorsCache = doc.selectors
-    .filter((entry) => entry.tier === 'L1' && entry.required && entry.key !== 'home-icon' && entry.key !== 'home-route')
-    .map((entry) => entry.selector);
-  return codexShellSelectorsCache;
-}
-
-interface CdpTarget {
-  id: string;
-  type: string;
-  url: string;
-  webSocketDebuggerUrl: string;
-}
-
-// Minimal CDP session over a loopback WebSocket, using Electron's Node
-// runtime's built-in global WebSocket (same as the vendored injector.mjs --
-// no external `ws` package, which packaged Electron builds can't resolve
-// unless it's separately vendored into node_modules).
 class CdpSession {
   private ws: WebSocket;
   private nextId = 1;
@@ -56,9 +28,9 @@ class CdpSession {
 
   async open(): Promise<void> {
     await new Promise<void>((resolve, reject) => {
-      const t = setTimeout(() => { this.ws.close(); reject(new Error('CDP WS open timed out')); }, 5_000);
-      this.ws.addEventListener('open', () => { clearTimeout(t); resolve(); }, { once: true });
-      this.ws.addEventListener('error', () => { clearTimeout(t); reject(new Error('CDP WS open failed')); }, { once: true });
+      const timer = setTimeout(() => { this.ws.close(); reject(new Error('CDP WebSocket open timed out')); }, 5_000);
+      this.ws.addEventListener('open', () => { clearTimeout(timer); resolve(); }, { once: true });
+      this.ws.addEventListener('error', () => { clearTimeout(timer); reject(new Error('CDP WebSocket open failed')); }, { once: true });
     });
     this.ws.addEventListener('message', (event) => this.onMessage(String(event.data)));
     this.ws.addEventListener('close', () => this.onClose(), { once: true });
@@ -68,21 +40,24 @@ class CdpSession {
   }
 
   private onMessage(data: string): void {
-    let msg: Record<string, unknown>;
-    try { msg = JSON.parse(data); } catch { this.close(); return; }
-    if (typeof msg.id === 'number') {
-      const p = this.pending.get(msg.id);
-      if (!p) return;
-      clearTimeout(p.timer);
-      this.pending.delete(msg.id);
-      if (msg.error) p.reject(new Error(String((msg.error as Record<string, unknown>).message ?? 'CDP error')));
-      else p.resolve(msg.result);
-    }
+    let message: Record<string, unknown>;
+    try { message = JSON.parse(data); } catch { this.close(); return; }
+    if (typeof message.id !== 'number') return;
+    const pending = this.pending.get(message.id);
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    this.pending.delete(message.id);
+    if (message.error) pending.reject(new Error(String((message.error as Record<string, unknown>).message ?? 'CDP error')));
+    else pending.resolve(message.result);
   }
 
   private onClose(): void {
+    if (this.closed) return;
     this.closed = true;
-    for (const p of this.pending.values()) { clearTimeout(p.timer); p.reject(new Error('CDP session closed')); }
+    for (const pending of this.pending.values()) {
+      clearTimeout(pending.timer);
+      pending.reject(new Error('CDP session closed'));
+    }
     this.pending.clear();
   }
 
@@ -97,63 +72,38 @@ class CdpSession {
       this.pending.set(id, { resolve, reject, timer });
       try {
         this.ws.send(JSON.stringify({ id, method, params }));
-      } catch (err) {
+      } catch (error) {
         clearTimeout(timer);
         this.pending.delete(id);
-        reject(err as Error);
+        reject(error as Error);
       }
     });
   }
 
   async evaluate(expression: string): Promise<unknown> {
     const result = await this.send('Runtime.evaluate', {
-      expression, awaitPromise: true, returnByValue: true, userGesture: false,
+      expression,
+      awaitPromise: true,
+      returnByValue: true,
+      userGesture: false,
     }) as Record<string, unknown>;
     if (result.exceptionDetails) {
-      const ex = result.exceptionDetails as Record<string, unknown>;
-      throw new Error(`Renderer eval failed: ${(ex.exception as Record<string, unknown>)?.description ?? ex.text}`);
+      const exception = result.exceptionDetails as Record<string, unknown>;
+      throw new Error(`Renderer eval failed: ${(exception.exception as Record<string, unknown>)?.description ?? exception.text}`);
     }
     return (result.result as Record<string, unknown>)?.value;
   }
 
   close(): void {
-    if (!this.closed) { try { this.ws.close(); } catch {} }
+    if (!this.closed) {
+      try { this.ws.close(); } catch { /* WebSocket is already closing. */ }
+    }
     this.onClose();
   }
 }
 
-async function fetchTargets(port: number): Promise<CdpTarget[]> {
-  const res = await fetch(`http://127.0.0.1:${port}/json/list`, {
-    signal: AbortSignal.timeout(2_000), redirect: 'error',
-  });
-  if (!res.ok) throw new Error(`CDP /json/list HTTP ${res.status}`);
-  const list = await res.json() as unknown[];
-  return list.filter((t): t is CdpTarget =>
-    !!t && typeof t === 'object' &&
-    (t as CdpTarget).type === 'page' &&
-    typeof (t as CdpTarget).webSocketDebuggerUrl === 'string' &&
-    ((t as CdpTarget).url?.startsWith('app://') ?? false),
-  );
-}
-
-// Same probe intent as vendor's private probeSession(): confirm this is the
-// Codex shell before touching it, using the L1-required selectors from the
-// shared selectors.json contract rather than a guessed selector list.
-async function isCodexTarget(session: CdpSession): Promise<boolean> {
-  try {
-    const selectors = await codexShellSelectors();
-    const result = await session.evaluate(`(function(){
-      const selectors = ${JSON.stringify(selectors)};
-      return location.protocol === 'app:' && selectors.every((sel) => document.querySelector(sel));
-    })()`);
-    return result === true;
-  } catch {
-    return false;
-  }
-}
-
-// Manages the live CDP connection + theme injection.
-// Replaces the old utilityProcess.fork(injector.mjs) approach entirely.
+// Owns one verified renderer target. It keeps all theme parsing in the vendored
+// injector and only handles delivery, renderer replacement, and Codex++ takeover.
 export class InjectionManager {
   private session: CdpSession | null = null;
   private pollTimer: NodeJS.Timeout | null = null;
@@ -162,10 +112,7 @@ export class InjectionManager {
   private currentRevision: string | null = null;
   private loadPayloadFn: ((themeDir: string) => Promise<{ payload: string; revision: string }>) | null = null;
 
-  constructor(
-    private readonly port: number,
-    private readonly browserId: string,
-  ) {}
+  constructor(private endpoint: VerifiedCdpEndpoint) {}
 
   async start(initialThemeDir: string): Promise<void> {
     this.currentThemeDir = initialThemeDir;
@@ -176,15 +123,20 @@ export class InjectionManager {
 
   stop(): void {
     this.stopped = true;
-    if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
+    if (this.pollTimer) clearInterval(this.pollTimer);
+    this.pollTimer = null;
     this.session?.close();
     this.session = null;
   }
 
-  // Apply a new theme immediately.
+  getEndpoint(): VerifiedCdpEndpoint {
+    return this.endpoint;
+  }
+
+
   async applyTheme(themeDir: string): Promise<{ ok: boolean; error?: string }> {
     this.currentThemeDir = themeDir;
-    this.currentRevision = null; // force re-inject on next poll too
+    this.currentRevision = null;
     return this.inject(themeDir);
   }
 
@@ -192,53 +144,52 @@ export class InjectionManager {
     if (this.stopped) return;
     if (!this.session || this.session.closed) {
       await this.tryConnect();
+      return;
+    }
+    if (!this.currentThemeDir) return;
+    if (!this.currentRevision) {
+      await this.inject(this.currentThemeDir, true);
     }
   }
+
 
   private async tryConnect(): Promise<void> {
     try {
-      const targets = await fetchTargets(this.port);
-      for (const target of targets) {
-        if (this.stopped) return;
-        let session: CdpSession | null = null;
-        try {
-          session = new CdpSession(target.webSocketDebuggerUrl);
-          await session.open();
-          if (!await isCodexTarget(session)) { session.close(); continue; }
-          this.session = session;
-          // Inject current theme right away on fresh connect.
-          if (this.currentThemeDir) await this.inject(this.currentThemeDir);
-          return;
-        } catch {
-          session?.close();
-        }
-      }
+      const verified = await probeCdpEndpoint({
+        port: this.endpoint.port,
+        source: this.endpoint.source,
+        host: this.endpoint.host,
+      });
+      if (!verified || verified.browserId !== this.endpoint.browserId || verified.targetId !== this.endpoint.targetId) return;
+
+      const session = new CdpSession(this.endpoint.targetWebSocketUrl);
+      await session.open();
+      this.session = session;
+      if (this.currentThemeDir) await this.inject(this.currentThemeDir, true);
     } catch {
-      // CDP not yet available; poll will retry.
+      this.session?.close();
+      this.session = null;
     }
   }
 
-  // Ground truth for whether theming is actually working right now --
-  // independent of bridge.ps1's detect call, which only re-verifies package
-  // identity and can time out on a slow CIM session even while this live
-  // WebSocket keeps working fine.
   isSessionAlive(): boolean {
     return !this.stopped && this.session !== null && !this.session.closed;
   }
 
-  private async inject(themeDir: string): Promise<{ ok: boolean; error?: string }> {
-    if (!this.loadPayloadFn) return { ok: false, error: 'InjectionManager not started' };
-    if (!this.session || this.session.closed) return { ok: false, error: 'No active CDP session' };
+  private async inject(themeDir: string, force = false): Promise<{ ok: boolean; error?: string }> {
+    if (!this.loadPayloadFn) return { ok: false, error: 'Injection manager has not started.' };
+    if (!this.session || this.session.closed) return { ok: false, error: 'No active Codex renderer session.' };
     try {
       const loaded = await this.loadPayloadFn(themeDir);
-      if (loaded.revision === this.currentRevision) return { ok: true };
+      if (!force && loaded.revision === this.currentRevision) return { ok: true };
       await this.session.evaluate(loaded.payload);
       this.currentRevision = loaded.revision;
       return { ok: true };
-    } catch (err) {
-      this.session?.close();
+    } catch (error) {
+      this.session.close();
       this.session = null;
-      return { ok: false, error: (err as Error).message };
+      return { ok: false, error: (error as Error).message };
     }
   }
+
 }

@@ -90,3 +90,6 @@ typings/
 
 # Electron-Forge
 out/
+
+# Local test compilation output
+.tmp/

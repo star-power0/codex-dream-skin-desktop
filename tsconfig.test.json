@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "outDir": ".tmp/test-build",
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": [
+    "src/main/cdp-discovery.ts",
+    "src/main/codex-plusplus-status.ts",
+    "test/**/*.test.ts"
+  ]
+}

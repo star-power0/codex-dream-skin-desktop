@@ -1,3 +1,10 @@
+export type CodexHostKind = 'codexbridge' | 'codexplusplus';
+
+export type CdpPortSource =
+  | 'codexplusplus-status'
+  | 'codexplusplus-default'
+  | 'codexbridge-default';
+
 export interface ThemeSummary {
   id: string;
   name: string;
@@ -11,9 +18,17 @@ export interface ThemeSummary {
 export type CodexConnectionState =
   | { status: 'not-installed' }
   | { status: 'not-running' }
+  | { status: 'codexplusplus-not-running'; port?: number }
   | { status: 'running-unthemed' }
   | { status: 'connecting' }
-  | { status: 'connected'; port: number; browserId: string }
+  | {
+    status: 'connected';
+    host: CodexHostKind;
+    port: number;
+    portSource: CdpPortSource;
+    browserId: string;
+    targetId: string;
+  }
   | { status: 'error'; message: string };
 
 export interface RendererSnapshot {

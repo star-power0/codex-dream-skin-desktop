@@ -1,18 +1,16 @@
 import { EventEmitter } from 'node:events';
 import { detectCodex, startCodexTheming, stopCodexTheming } from './codex-bridge';
 import type { DetectResult } from './codex-bridge';
+import { buildCdpPortCandidates, readCodexPlusPlusLaunchStatus } from './codex-plusplus-status';
+import { discoverCdpEndpoint } from './cdp-discovery';
+import type { VerifiedCdpEndpoint } from './cdp-discovery';
 import { InjectionManager } from './injection-manager';
 import { listSavedThemes, readActiveTheme, writeActiveTheme } from '../shared/theme-store';
 import type { CodexConnectionState, RendererSnapshot, ThemeSummary } from '../shared/ipc-contract';
 
-const CDP_PORT = 9335;
+const CODEX_BRIDGE_PORT = 9335;
 const POLL_INTERVAL_MS = 4000;
 
-// Auto-attach: unlike the PowerShell tray (which requires a manual "apply"
-// click), this poller notices a plain Codex launch and connects on its own.
-// It cannot theme an already-running unthemed Codex without a restart --
-// that CDP flag has to be present at process start -- so it only auto-starts
-// theming when Codex isn't running yet, or already exposes the debug port.
 export class DreamSkinController extends EventEmitter {
   private connection: CodexConnectionState = { status: 'not-installed' };
   private busy = false;
@@ -22,8 +20,6 @@ export class DreamSkinController extends EventEmitter {
   private polling = false;
   private stopped = false;
   private injectionManager: InjectionManager | null = null;
-  private cdpPort: number | null = null;
-  private cdpBrowserId: string | null = null;
 
   async start(): Promise<void> {
     await this.refreshThemes();
@@ -38,21 +34,23 @@ export class DreamSkinController extends EventEmitter {
   }
 
   private stopInjectionManager(): void {
-    if (this.injectionManager) {
-      this.injectionManager.stop();
-      this.injectionManager = null;
-    }
+    this.injectionManager?.stop();
+    this.injectionManager = null;
   }
 
-  private async startInjectionManagerIfNeeded(port: number, browserId: string): Promise<void> {
-    this.cdpPort = port;
-    this.cdpBrowserId = browserId;
-    if (this.injectionManager) return;
-    // Fall back to the first saved theme when nothing is marked active yet
-    // (fresh install) -- there's always something to inject once a theme exists.
-    const activeTheme = this.themes.find((t) => t.active) ?? this.themes[0];
+  private sameEndpoint(endpoint: VerifiedCdpEndpoint): boolean {
+    const current = this.injectionManager?.getEndpoint();
+    return current?.port === endpoint.port
+      && current.browserId === endpoint.browserId
+      && current.targetId === endpoint.targetId;
+  }
+
+  private async startInjectionManagerIfNeeded(endpoint: VerifiedCdpEndpoint): Promise<void> {
+    if (this.sameEndpoint(endpoint)) return;
+    this.stopInjectionManager();
+    const activeTheme = this.themes.find((theme) => theme.active) ?? this.themes[0];
     if (!activeTheme) return;
-    const manager = new InjectionManager(port, browserId);
+    const manager = new InjectionManager(endpoint);
     this.injectionManager = manager;
     await manager.start(activeTheme.directory);
   }
@@ -89,26 +87,43 @@ export class DreamSkinController extends EventEmitter {
     }));
   }
 
+  private async discoverRunningEndpoint(): Promise<{ endpoint: VerifiedCdpEndpoint | null; hasCodexPlusPlusStatus: boolean; statusPort?: number }> {
+    const status = await readCodexPlusPlusLaunchStatus();
+    const endpoint = await discoverCdpEndpoint(buildCdpPortCandidates(status));
+    return { endpoint, hasCodexPlusPlusStatus: status !== null, statusPort: status?.debugPort };
+  }
+
+  private connectedState(endpoint: VerifiedCdpEndpoint): CodexConnectionState {
+    return {
+      status: 'connected',
+      host: endpoint.host,
+      port: endpoint.port,
+      portSource: endpoint.source,
+      browserId: endpoint.browserId,
+      targetId: endpoint.targetId,
+    };
+  }
+
   private async poll(): Promise<void> {
-    // detect can take up to ~20s on some machines (see codex-bridge.ts); the
-    // 4s interval must not stack overlapping PowerShell spawns on top of it.
     if (this.stopped || this.busy || this.polling) return;
     this.polling = true;
     try {
-      // Exactly one detectCodex call per cycle. The previous version ran a
-      // "recheck" detect while connected and, on any transient miss, emitted
-      // a demoted 'not-running' snapshot before immediately re-detecting and
-      // often flipping straight back to 'connected' -- that's what produced
-      // the connect/disconnect flicker in the UI.
-      const result = await detectCodex(CDP_PORT).catch((err: Error): DetectResult | null => {
-        // detectCodex only re-verifies package identity via bridge.ps1; it can
-        // time out on a slow CIM session while the live injection WebSocket
-        // (ground truth for whether theming actually works) is still healthy.
-        // Keep showing 'connected' rather than downgrading on a false alarm.
-        if (this.connection.status === 'connected' && this.injectionManager?.isSessionAlive()) {
-          return null;
-        }
-        this.connection = { status: 'error', message: err.message };
+      const discovered = await this.discoverRunningEndpoint();
+      if (discovered.endpoint) {
+        await this.startInjectionManagerIfNeeded(discovered.endpoint);
+        this.connection = this.connectedState(discovered.endpoint);
+        this.emitSnapshot();
+        return;
+      }
+
+      if (this.connection.status === 'connected' && this.injectionManager?.isSessionAlive()) {
+        this.emitSnapshot();
+        return;
+      }
+      this.stopInjectionManager();
+
+      const result = await detectCodex(CODEX_BRIDGE_PORT).catch((error: Error): DetectResult | null => {
+        this.connection = { status: 'error', message: error.message };
         return null;
       });
       if (!result) { this.emitSnapshot(); return; }
@@ -117,20 +132,17 @@ export class DreamSkinController extends EventEmitter {
         this.emitSnapshot();
         return;
       }
-      if (result.cdpActive && result.browserId) {
-        const port = result.port ?? CDP_PORT;
-        this.connection = { status: 'connected', port, browserId: result.browserId };
-        await this.startInjectionManagerIfNeeded(port, result.browserId);
+      if (result.running) {
+        this.connection = { status: 'running-unthemed' };
         this.emitSnapshot();
         return;
       }
-      if (this.connection.status === 'connected') this.stopInjectionManager();
-      if (!result.running) {
-        await this.connect(false);
+      if (discovered.hasCodexPlusPlusStatus) {
+        this.connection = { status: 'codexplusplus-not-running', port: discovered.statusPort };
+        this.emitSnapshot();
         return;
       }
-      this.connection = { status: 'running-unthemed' };
-      this.emitSnapshot();
+      await this.connect(false);
     } finally {
       this.polling = false;
     }
@@ -138,24 +150,35 @@ export class DreamSkinController extends EventEmitter {
 
   async connect(restartExisting: boolean): Promise<{ ok: boolean; error?: string }> {
     if (this.busy) return { ok: false, error: 'Another operation is already running.' };
+    if (this.connection.status === 'codexplusplus-not-running') {
+      return {
+        ok: false,
+        error: 'Codex++ is attach-only. Start Codex from the Codex++ launcher, then this app will connect automatically.',
+      };
+    }
     this.busy = true;
     this.connection = { status: 'connecting' };
     this.emitSnapshot();
     try {
-      const result = await startCodexTheming(CDP_PORT, restartExisting);
+      const result = await startCodexTheming(CODEX_BRIDGE_PORT, restartExisting);
       if (!result.ok || !result.browserId) {
         this.connection = result.needsRestart
           ? { status: 'running-unthemed' }
           : { status: 'error', message: result.error ?? 'Failed to start theming.' };
         return { ok: false, error: result.error };
       }
-      const port = result.port ?? CDP_PORT;
-      this.connection = { status: 'connected', port, browserId: result.browserId };
-      await this.startInjectionManagerIfNeeded(port, result.browserId);
+
+      const endpoint = await discoverCdpEndpoint([{ port: result.port ?? CODEX_BRIDGE_PORT, source: 'codexbridge-default', host: 'codexbridge' }]);
+      if (!endpoint) {
+        this.connection = { status: 'error', message: 'Codex started, but its verified renderer is not ready yet.' };
+        return { ok: false, error: 'Codex renderer is not ready yet.' };
+      }
+      await this.startInjectionManagerIfNeeded(endpoint);
+      this.connection = this.connectedState(endpoint);
       return { ok: true };
-    } catch (err) {
-      this.connection = { status: 'error', message: (err as Error).message };
-      return { ok: false, error: (err as Error).message };
+    } catch (error) {
+      this.connection = { status: 'error', message: (error as Error).message };
+      return { ok: false, error: (error as Error).message };
     } finally {
       this.busy = false;
       this.emitSnapshot();
@@ -167,8 +190,9 @@ export class DreamSkinController extends EventEmitter {
     this.busy = true;
     this.emitSnapshot();
     try {
-      await stopCodexTheming(CDP_PORT);
+      const endpoint = this.injectionManager?.getEndpoint();
       this.stopInjectionManager();
+      if (endpoint?.host === 'codexbridge') await stopCodexTheming(endpoint.port);
       this.connection = { status: 'not-running' };
       return { ok: true };
     } finally {
@@ -179,30 +203,23 @@ export class DreamSkinController extends EventEmitter {
 
   async applyTheme(themeId: string): Promise<{ ok: boolean; error?: string }> {
     if (this.busy) return { ok: false, error: 'Another operation is already running.' };
-    const theme = this.themes.find((t) => t.id === themeId);
+    const theme = this.themes.find((candidate) => candidate.id === themeId);
     if (!theme) return { ok: false, error: 'Unknown theme.' };
+    if (!this.injectionManager) return { ok: false, error: 'No verified Codex renderer is connected.' };
+
     this.busy = true;
     this.emitSnapshot();
     try {
-      // Inject directly via the live CDP session — no file-system round-trip.
-      // Lazily create the manager here too: it's normally started once a
-      // theme is already active, but a fresh install has none yet, so the
-      // very first click needs to bootstrap it itself.
-      if (!this.injectionManager && this.cdpPort && this.cdpBrowserId) {
-        const manager = new InjectionManager(this.cdpPort, this.cdpBrowserId);
-        this.injectionManager = manager;
-        await manager.start(theme.directory);
-      } else if (this.injectionManager) {
-        const injectResult = await this.injectionManager.applyTheme(theme.directory);
-        if (!injectResult.ok) return injectResult;
-      }
-      // Persist the selection so the next cold start knows which theme was active.
-      await writeActiveTheme(theme.directory).catch(() => {});
+      const injectResult = await this.injectionManager.applyTheme(theme.directory);
+      if (!injectResult.ok) return injectResult;
+      await writeActiveTheme(theme.directory).catch(() => { /* Theme persistence is best-effort. */ });
       this.activeThemeId = theme.id;
-      this.themes = this.themes.map((t) => ({ ...t, active: t.id === theme.id }));
+      this.themes = this.themes.map((candidate) => ({ ...candidate, active: candidate.id === theme.id }));
+      const endpoint = this.injectionManager.getEndpoint();
+      this.connection = this.connectedState(endpoint);
       return { ok: true };
-    } catch (err) {
-      return { ok: false, error: (err as Error).message };
+    } catch (error) {
+      return { ok: false, error: (error as Error).message };
     } finally {
       this.busy = false;
       this.emitSnapshot();
