@@ -554,7 +554,7 @@ html[data-dream-skin="active"]:is([data-dream-task-mode="off"], [data-dream-art-
   content: none;
 }
 
-html[data-dream-skin="active"] main.main-surface:not(:has([role="main"])) > :not(header.app-header-tint) {
+html[data-dream-skin="active"] main.main-surface:not(:has([role="main"])) > :not(header) {
   position: relative;
   z-index: 1;
 }
@@ -1024,23 +1024,70 @@ html[data-dream-skin="active"] :is(main.main-surface, main[class*="MainContentSu
   background-repeat: no-repeat;
 }
 
+/* The exclusion deliberately matches any direct-child <header>, not a specific
+   class. Codex++ 1.2.45 renamed .app-header-tint to a generated CSS Modules
+   class, so a class-pinned :not() stopped excluding the floating header and this
+   rule's `position: relative` overrode its native `position: fixed` -- the
+   header then joined normal flow, shifting right by the sidebar width and
+   consuming 46px of content height (measured: x 284 -> 568, content y 83 -> 129).
+   The shell's only direct-child header is that native toolbar, so excluding the
+   element type is both sufficient and immune to the next rename. */
 html[data-dream-skin="active"] :is(main.main-surface, main[class*="MainContentSurface"]):has([role="main"])
-  > :not(header.app-header-tint) {
+  > :not(header) {
   position: relative;
   z-index: 1;
   background-color: transparent !important;
 }
 
 /* Codex++ 1.2.45 uses a generated MainContentSurface class and does not expose
-   the older [role="main"] anchor on the outer surface. Keep the wallpaper on
-   the actual visible shell even when that route contract is absent. */
-html[data-dream-skin="active"] :is(main[class*="MainContentSurface"], main.main-surface) {
+   the older [role="main"] anchor on the outer surface. Keep this fallback scoped
+   to that generated shell so legacy task composition keeps its original cascade. */
+html[data-dream-skin="active"] main[class*="MainContentSurface"] {
   position: relative !important;
   isolation: isolate;
-  background-color: transparent !important;
+  background: transparent !important;
 }
 
-html[data-dream-skin="active"] :is(main[class*="MainContentSurface"], main.main-surface)::before {
+/* Settings replaces the normal task shell with its own opaque content surface.
+   Keep wallpaper on conversation/home routes only; otherwise the generated
+   shell leaves an art strip above the settings content. */
+html[data-dream-skin="active"][data-dream-route="settings"] {
+  --color-background-panel: var(--ds-panel) !important;
+  --color-background-surface: var(--ds-bg) !important;
+  --color-background-surface-under: var(--ds-bg) !important;
+  --color-background-control: var(--ds-panel) !important;
+  --color-background-control-opaque: var(--ds-panel) !important;
+}
+
+html[data-dream-skin="active"][data-dream-route="settings"]
+  :is(main.main-surface, main[class*="MainContentSurface"]) {
+  background: var(--ds-bg) !important;
+}
+
+html[data-dream-skin="active"][data-dream-route="settings"]
+  :is(main.main-surface, main[class*="MainContentSurface"])::before {
+  content: none !important;
+}
+
+html[data-dream-skin="active"][data-dream-route="settings"] body {
+  background: var(--ds-bg) !important;
+}
+
+/* Settings mounts its own toolbar inside the content frame, so the shell's
+   reserved offset is duplicated there and only there. Conversation and home
+   routes must keep the native offset or the first line collides with the
+   floating header. */
+html[data-dream-skin="active"][data-dream-route="settings"] main[class*="MainContentSurface"]
+  [class*="MainContentViewport"] {
+  --app-shell-main-content-frame-top-offset: 0px !important;
+}
+
+html[data-dream-skin="active"][data-dream-route="settings"] main[class*="MainContentSurface"]
+  [class*="MainContentFrame"] {
+  margin-top: 0 !important;
+}
+
+html[data-dream-skin="active"] main[class*="MainContentSurface"]::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -1054,6 +1101,75 @@ html[data-dream-skin="active"] :is(main[class*="MainContentSurface"], main.main-
   background-position: center, var(--ds-art-position);
   background-size: 100% 100%, cover;
   background-repeat: no-repeat;
+}
+
+/* Thread routes without [role="main"] still contain a native opaque content
+   frame. Clear only the route frame and stable scroll wrappers; cards, composer,
+   and dialogs keep their own themed surfaces. */
+html[data-dream-skin="active"]
+  :is(main[class*="MainContentSurface"], main.main-surface):not(:has([role="main"]))
+  > :not(header) {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+}
+
+html[data-dream-skin="active"]
+  :is(main[class*="MainContentSurface"], main.main-surface):not(:has([role="main"]))
+  :is(.thread-scroll-container, .app-shell-main-content-frame) {
+  background: transparent !important;
+}
+
+/* The generated shell is a task surface when it lacks the home [role="main"]
+   anchor. Reuse the established task veil instead of the home-only immersive
+   gradient; otherwise light themes expose a white band and dark themes expose a
+   black band beside the conversation content. */
+html[data-dream-skin="active"] main[class*="MainContentSurface"]:not(:has([role="main"]))::before {
+  background-image: var(--ds-task-fade), var(--ds-task-shade), var(--dream-skin-art);
+  background-repeat: no-repeat;
+  background-position: center, center, var(--ds-art-position);
+  background-size: 100% 100%, 100% 100%, cover;
+  opacity: .78;
+}
+
+html[data-dream-skin="active"][data-dream-shell="light"]
+  main[class*="MainContentSurface"]:not(:has([role="main"]))::before {
+  opacity: .72;
+}
+
+html[data-dream-skin="active"]:is([data-dream-art-wide="true"], [data-dream-art-aspect="wide"], [data-dream-art-aspect="ultrawide"])
+  main[class*="MainContentSurface"]:not(:has([role="main"]))::before {
+  background-position: center, center, var(--ds-art-position);
+  background-size: 100% 100%, 100% 100%, cover;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="full"], [data-dream-art-task-mode="full"])
+  main[class*="MainContentSurface"]:not(:has([role="main"]))::before {
+  inset: 0;
+  height: auto;
+  background-image: var(--ds-task-full-veil), var(--dream-skin-art);
+  background-position: center, var(--ds-art-position);
+  background-size: 100% 100%, cover;
+  opacity: 1;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])
+  main[class*="MainContentSurface"]:not(:has([role="main"]))::before {
+  inset: 0;
+  height: auto;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])
+  main[class*="MainContentSurface"]:not(:has([role="main"]))::before {
+  inset: 0 0 auto;
+  height: clamp(280px, 46vh, 520px);
+  background-position: center top, center top, var(--ds-art-position);
+  background-size: 100% 100%, 100% 100%, cover;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="off"], [data-dream-art-task-mode="off"])
+  main[class*="MainContentSurface"]:not(:has([role="main"]))::before {
+  content: none;
 }
 
 html[data-dream-skin="active"][data-dream-art-wide="true"] main.main-surface:has([role="main"])
@@ -1128,7 +1244,7 @@ html[data-dream-skin="active"][data-dream-shell="light"]
 /* Current Codex builds render the home project picker as a separate opaque
    cap above the composer. Join both native controls into one continuous
    surface while leaving task and utility-route inputs untouched. */
-html[data-dream-skin="active"] [class*="_homeUtilityBar_"] {
+html[data-dream-skin="active"] :is([class*="HomeUtilityBar"], [class*="_homeUtilityBar_"], [class*="_HomeUtilityBar_"]) {
   top: 0 !important;
   width: 100% !important;
   margin-inline: 0 !important;
@@ -1142,7 +1258,7 @@ html[data-dream-skin="active"] [class*="_homeUtilityBar_"] {
   backdrop-filter: blur(16px) saturate(108%) !important;
 }
 
-html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):has([class*="_homeUtilityBar_"])
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):has(:is([class*="HomeUtilityBar"], [class*="_homeUtilityBar_"], [class*="_HomeUtilityBar_"]))
   .composer-surface-chrome {
   border: 0 !important;
   border-radius: 0 0 22px 22px !important;
@@ -1153,7 +1269,7 @@ html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):has(
     inset 0 -1px rgb(var(--ds-muted-rgb) / .18) !important;
 }
 
-html[data-dream-skin="active"][data-dream-art-wide="true"] [class*="_homeUtilityBar_"] {
+html[data-dream-skin="active"][data-dream-art-wide="true"] :is([class*="HomeUtilityBar"], [class*="_homeUtilityBar_"], [class*="_HomeUtilityBar_"]) {
   background: var(--ds-immersive-composer-solid) !important;
   box-shadow:
     inset 1px 0 var(--ds-immersive-line),
@@ -1163,7 +1279,7 @@ html[data-dream-skin="active"][data-dream-art-wide="true"] [class*="_homeUtility
 }
 
 html[data-dream-skin="active"][data-dream-art-wide="true"]
-  [role="main"]:has([data-testid="home-icon"]):has([class*="_homeUtilityBar_"]) .composer-surface-chrome {
+  [role="main"]:has([data-testid="home-icon"]):has(:is([class*="HomeUtilityBar"], [class*="_homeUtilityBar_"], [class*="_HomeUtilityBar_"])) .composer-surface-chrome {
   box-shadow:
     0 10px 30px rgb(var(--ds-bg-rgb) / .20),
     inset 1px 0 var(--ds-immersive-line),
@@ -1172,7 +1288,7 @@ html[data-dream-skin="active"][data-dream-art-wide="true"]
 }
 
 html[data-dream-skin="active"][data-dream-shell="light"][data-dream-art-wide="true"]
-  [class*="_homeUtilityBar_"] {
+  :is([class*="HomeUtilityBar"], [class*="_homeUtilityBar_"], [class*="_HomeUtilityBar_"]) {
   box-shadow:
     inset 1px 0 var(--ds-immersive-line),
     inset -1px 0 var(--ds-immersive-line),
@@ -1180,22 +1296,22 @@ html[data-dream-skin="active"][data-dream-shell="light"][data-dream-art-wide="tr
   backdrop-filter: blur(8px) saturate(102%) !important;
 }
 
-html[data-dream-skin="active"] [class*="_homeUtilityBar_"] button,
+html[data-dream-skin="active"] :is([class*="HomeUtilityBar"], [class*="_homeUtilityBar_"], [class*="_HomeUtilityBar_"]) button,
 html[data-dream-skin="active"] .composer-surface-chrome button:not([class~="bg-token-foreground"]) {
   color: var(--ds-muted) !important;
 }
 
-html[data-dream-skin="active"] [class*="_homeUtilityBar_"] button svg,
+html[data-dream-skin="active"] :is([class*="HomeUtilityBar"], [class*="_homeUtilityBar_"], [class*="_HomeUtilityBar_"]) button svg,
 html[data-dream-skin="active"] .composer-surface-chrome button svg {
   color: currentColor !important;
 }
 
-html[data-dream-skin="active"] [class*="_homeUtilityBar_"] button *,
+html[data-dream-skin="active"] :is([class*="HomeUtilityBar"], [class*="_homeUtilityBar_"], [class*="_HomeUtilityBar_"]) button *,
 html[data-dream-skin="active"] .composer-surface-chrome button:not([class~="bg-token-foreground"]) * {
   color: currentColor !important;
 }
 
-html[data-dream-skin="active"] [class*="_homeUtilityBar_"] button:hover,
+html[data-dream-skin="active"] :is([class*="HomeUtilityBar"], [class*="_homeUtilityBar_"], [class*="_HomeUtilityBar_"]) button:hover,
 html[data-dream-skin="active"] .composer-surface-chrome button:not([class~="bg-token-foreground"]):hover {
   color: var(--ds-text) !important;
   background: rgb(var(--ds-accent-rgb) / .10) !important;
@@ -1244,13 +1360,23 @@ html[data-dream-skin="active"][data-dream-art-wide="true"] main.main-surface
 /* These are native chrome layers, not wallpaper composition. They must be
    neutralized at every aspect ratio or square/portrait art exposes the
    application's unrelated dark/light token around task content. */
-html[data-dream-skin="active"] main.main-surface
+html[data-dream-skin="active"] :is(main.main-surface, main[class*="MainContentSurface"])
   .app-shell-main-content-top-fade {
   display: none !important;
   background: transparent !important;
 }
 
-html[data-dream-skin="active"] main.main-surface
+/* Codex++ 1.2.45 renamed this chrome layer to a CSS-module class, so the rule
+   above no longer matches. It paints the native main-surface token over the
+   wallpaper at the content frame's top edge, which reads as a hard seam.
+   Only the painted gradient is removed; layout offsets stay untouched. */
+html[data-dream-skin="active"] :is(main.main-surface, main[class*="MainContentSurface"])
+  [class*="MainContentTopFade"] {
+  background: none !important;
+  opacity: 0 !important;
+}
+
+html[data-dream-skin="active"] :is(main.main-surface, main[class*="MainContentSurface"])
   .thread-scroll-container .bg-gradient-to-t.from-token-main-surface-primary {
   background: transparent !important;
 }

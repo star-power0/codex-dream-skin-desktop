@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.2.0 — 2026-08-11（Codex++ 1.2.45 适配与顶栏几何回归修复）
+
+### 修复
+
+- 修复会话页标题错位：Codex++ 1.2.45 把顶栏的 `.app-header-tint` 改成 CSS Modules 生成类，皮肤中 `> :not(header.app-header-tint)` 的排除因此静默失效，规则的 `position: relative` 覆盖了顶栏原生的 `position: fixed`，顶栏落回文档流。CDP 实测偏移：`x 284 → 568`（正好一个侧栏宽度）、`y 36 → 72`、`z-index 30 → 1`、内容顶 `y 83 → 129`（顶栏占掉 46px 流高）。三处规则改为按元素类型排除 `:not(header)`，主表面唯一的直接子 `header` 就是原生顶栏，故该写法既充分又不受后续改名影响。A/B 实测皮肤开/关两态几何一致：header `{x:284, y:36, w:1241, h:46}` fixed z30。
+- 修复选择器契约 `header-tint` 仍钉死已被移除的 `header.app-header-tint`（实测命中 0）导致的连带故障：该 L1 缺失会让 `renderer-inject.js` 把整条路由降级为 L0，而 L0 下注入器要求首页或设置页锚点可见——会话页永远无法满足，`structurePass` 在会话页恒为 false。锚点改为「旧类名或主表面直接子 header」二选一，并同步 `renderer-inject.js` 中手工维护的内联副本。实测会话路由现报 `baseState: thread`、`level: L1`、`missingL1: []`、`structurePass: true`。
+- 修复 Codex++ 1.2.45 无 `[role="main"]` 的会话路由：外层壁纸已显示但原生内容 frame 仍保留黑/白不透明背景，导致对话区域出现矩形遮罩、壁纸看起来被截断。
+- 将 `MainContentSurface` 兜底壁纸限定在新版生成的主表面，并只清理会话滚动容器和内容 frame；消息卡片、composer、dialog 等主题表面保持不变。
+- 让新版生成主表面沿用任务页的 `ambient/full` 遮罩，而不是误用首页沉浸渐变，避免浅色主题出现白带、深色主题出现黑带。
+- 清理新版主表面下 Codex++ 原生线程底部渐变，避免输入框外围出现随预设 `--ds-bg` 变化的黑/白/彩色条带。
+- 修复设置路由仍显示新版主表面壁纸伪元素，导致设置内容上方露出一条壁纸并产生内容下移错觉；使用设置搜索框作为 Codex++ 1.2.45 的稳定路由锚点，设置页恢复为主题背景表面，并移除设置内容 frame 重复的 46px toolbar 偏移。
+- 修复缓存的隐藏 webview 导致首页被误判成设置页、壁纸消失的回归；路由切换时同步刷新设置锚点状态。
+- 修复新建任务页与对话页正文区顶部出现一条横向分界线：Codex++ 1.2.45 把顶部 chrome fade 改名为 CSS Modules 类（`_MainContentTopFade_`），旧规则只匹配 `.app-shell-main-content-top-fade` 因而失效，该层用原生 main-surface token 盖在壁纸上形成硬边。现只清除其绘制（`background`/`opacity`），不改动任何布局偏移——此前一并清零 `--app-shell-main-content-frame-top-offset` 与 `margin-top` 会使正文上移 46px 并与顶栏文字重叠，已确认该偏移是浮动顶栏的必要预留。
+- 适配 Codex++ 新版大小写变化的 `_ComposerHomeUtilityBar_` 类名，让新建对话页的工作区选择栏不再保留原生白色 surface。
+- 同步扩展顶部 fade 清理范围，并更新选择器契约以识别 Codex++ 的 `MainContentSurface` 主表面，保证常驻注入器能继续完成跨主题刷新。
+- 未调整任何预设的颜色、`ambient/full` 任务模式或壁纸文件。
+
+### 说明
+
+- 右侧「输出」面板的折叠按钮经核查不是缺陷：其折叠箭头由原生 Tailwind `opacity-0 group-hover/section-toggle:opacity-100` 控制，设置其 `opacity` 的规则全部来自原生样式表，无皮肤规则参与。用真实鼠标事件悬停实测 `opacity` `0 → 1`、移出回 `0`，命中测试通过，属设计上的悬停显示。
+
+### 验证
+
+- `npm test`：7 个测试通过。
+- `npm run lint`：通过。
+- 三套主题（abyssal-cyan-reverie / xiaoxiao-hunan-night-festival / 三上悠亚）`injector.mjs --check-payload` 与 `validate-safe-css-file.mjs` 全部 validated。
+- `npm run package`：Windows x64 打包通过，产物内已确认包含 `:not(header)` 修复、top-fade 清理与新 `header-tint` 契约。
+
 ## 1.1.0 — 2026-08-10（Codex++ no-dream-skin 支持）
 
 ### 新增
