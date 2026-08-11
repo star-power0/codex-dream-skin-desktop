@@ -20,7 +20,7 @@ npm install
 npm run start
 ```
 
-首次运行需要让 Codex 以调试参数重启一次（应用会自动处理），之后每次启动都会自动检测并注入当前主题。
+首次运行需要让 Codex 以调试参数重启一次（应用会自动处理）。之后：Codex++ 启动的 Codex 自带调试端口，启动本工具即自动注入；手动双击或通过 CodexBridge 网关启动的 Codex 不带调试端口，本工具会检测到并**自动重启一次 Codex（带调试参数）**再注入，全程无需手动操作。
 
 ### 与 Codex++ Lite 搭配（推荐）
 
@@ -32,9 +32,9 @@ npm run start
 
 Codex++ Lite 已完整移除内置 Dream Skin，因此本工具只运行自己的一套主题注入 runtime，不存在两个皮肤 runtime 互相覆盖导致的闪烁；本工具也不会调用或接管任何 Codex++ 清理钩子，不会修改 Codex++ 的设置、安装目录或主题文件。
 
-Codex++ 默认使用 `9229`，但 Windows 端口冲突时会换成临时端口。本应用把 `%USERPROFILE%\.codex-session-delete\latest-status.json` 的 `debug_port` 仅作为候选提示，仍会重新校验本机 CDP 的 `/json/version`、`/json/list`、浏览器 ID、主 renderer target 和 loopback WebSocket 地址后才注入。
+Codex++ 默认使用 `9229`，但 Windows 端口冲突时会换成临时端口。本应用把 `%USERPROFILE%\.codex-session-delete\latest-status.json` 的 `debug_port` 仅作为候选提示，仍会重新校验本机 CDP 的 `/json/version`、`/json/list`、浏览器 ID、主 renderer target 和 loopback WebSocket 地址后才注入。「等待 Codex++ 启动 Codex」提示只在 Codex++ 启动器真实运行时显示；Codex++ 未运行时（无论磁盘上是否残留状态文件）显示通用的「Codex 未运行」+「启动 Codex」按钮。
 
-> **CodexBridge 是旧方案**：早期版本通过 CodexBridge 启动/停止 Codex，现在仍保留兼容（`9335` 端口路径），但已不再是推荐用法。
+> **CodexBridge 是网关，不是启动器**：CodexBridge（第三方）做的是模型路由/API 代理，它启动的 Codex 也是普通进程、不带调试端口，本工具会走上面的自动接管路径。CodexBridge 自带的「重启 Codex」按钮需要它自己配置 ChatGPT.exe 路径（Store 版默认路径它找不到），与本工具无关。本工具内部的 `9335` 端口是它自己接管/重启 Codex 时使用的调试端口，与 CodexBridge 无关。
 
 打包成可分发的安装程序：
 
