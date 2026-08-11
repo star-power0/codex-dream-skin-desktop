@@ -10,6 +10,12 @@ import type { CodexConnectionState, RendererSnapshot, ThemeSummary } from '../sh
 
 const CODEX_BRIDGE_PORT = 9335;
 const POLL_INTERVAL_MS = 4000;
+// When a manually launched Codex (double-click, CodexBridge gateway, ...) is
+// running without a CDP debug port, the only way to theme it is to restart it
+// with the debug flag. We do this automatically once per app start, after a
+// short settle delay so a just-launching Codex has time to expose its CDP
+// endpoint through the normal discovery path first.
+const AUTO_RESTART_SETTLE_MS = 10_000;
 
 export class DreamSkinController extends EventEmitter {
   private connection: CodexConnectionState = { status: 'not-installed' };
@@ -20,6 +26,8 @@ export class DreamSkinController extends EventEmitter {
   private polling = false;
   private stopped = false;
   private injectionManager: InjectionManager | null = null;
+  private autoRestartDone = false;
+  private unthemedSince: number | null = null;
 
   async start(): Promise<void> {
     await this.refreshThemes();
@@ -110,6 +118,7 @@ export class DreamSkinController extends EventEmitter {
     try {
       const discovered = await this.discoverRunningEndpoint();
       if (discovered.endpoint) {
+        this.unthemedSince = null;
         await this.startInjectionManagerIfNeeded(discovered.endpoint);
         this.connection = this.connectedState(discovered.endpoint);
         this.emitSnapshot();
@@ -133,6 +142,26 @@ export class DreamSkinController extends EventEmitter {
         return;
       }
       if (result.running) {
+        // Codex is running but exposes no verified CDP endpoint. A plain
+        // launch (double-click, CodexBridge gateway, ...) never carries the
+        // debug flag, and the flag can only be applied at process start, so
+        // the only way to theme this instance is to restart it once with the
+        // debug port. Codex++-launched instances are already found by
+        // discovery above and never reach this branch.
+        if (!this.autoRestartDone) {
+          if (this.unthemedSince === null) this.unthemedSince = Date.now();
+          const elapsed = Date.now() - this.unthemedSince;
+          this.connection = { status: 'running-unthemed' };
+          if (elapsed >= AUTO_RESTART_SETTLE_MS) {
+            this.autoRestartDone = true;
+            this.unthemedSince = null;
+            this.emitSnapshot();
+            await this.connect(true);
+          } else {
+            this.emitSnapshot();
+          }
+          return;
+        }
         this.connection = { status: 'running-unthemed' };
         this.emitSnapshot();
         return;
@@ -156,6 +185,8 @@ export class DreamSkinController extends EventEmitter {
         error: 'Codex++ is attach-only. Start Codex from the Codex++ launcher, then this app will connect automatically.',
       };
     }
+    // A manual restart arms the auto-restart again for the next unthemed launch.
+    if (restartExisting) this.autoRestartDone = false;
     this.busy = true;
     this.connection = { status: 'connecting' };
     this.emitSnapshot();
