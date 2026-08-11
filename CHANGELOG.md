@@ -1,16 +1,21 @@
 # Changelog
 
-## 未发布 — 2026-08-11（手动启动 Codex 自动接管换肤）
+## 1.2.1 — 2026-08-11（手动启动 Codex 自动接管换肤）
 
 ### 新增
 
 - 手动启动的 Codex（双击官方客户端、CodexBridge 网关等）不会携带 CDP 调试端口（该端口只能在进程启动时传入），此前皮肤项目只能显示「Codex 正在运行（未启用换肤）」并等待用户手动点击「重启并启用换肤」。现在检测到运行中但无调试端口的 Codex 时，会在 10 秒稳定期后**自动重启一次 Codex（带调试端口）并注入当前主题**，与 Codex++ 路径一样全自动。每次应用启动只自动接管一次，避免重启失败时无限循环；用户手动点「重启并启用换肤」后会重新武装自动接管。
 - Codex++ 启动的 Codex 自带调试端口，走正常的 discovery 路径，不会触发自动重启，行为不变。
 
+### 修复
+
+- 「等待 Codex++ 启动 Codex」提示现在只在 Codex++ 启动器**真实运行**时显示；此前只要磁盘上残留 `latest-status.json`（Codex++ 未运行时也存在）就显示该提示，会误导主要使用 CodexBridge 的用户。Codex++ 未运行时改显示通用的「Codex 未运行」+「启动 Codex」按钮。
+
 ### 说明
 
 - CodexBridge（第三方网关）自身「重启 Codex」按钮失败是其配置问题（需在 CodexBridge 中配置 ChatGPT.exe 路径，Store 版默认路径它找不到），与皮肤项目无关。
 - 桌面快捷方式图标空白为 Windows 图标缓存陈旧所致，删除 `%LOCALAPPDATA%\Microsoft\Windows\Explorer\iconcache_*.db` 并重启 Explorer 即恢复；exe 图标资源本身完整。
+- 任务栏/开始菜单显示 Electron 默认图标通常是因为运行的是 `npm start` 开发实例（进程名 `electron.exe`，使用 Electron 自带图标）；使用打包后的 `codex-dream-skin-desktop.exe`（进程名为应用名）即显示品牌图标。
 
 ## 1.2.0 — 2026-08-11（Codex++ 1.2.45 适配与顶栏几何回归修复）
 

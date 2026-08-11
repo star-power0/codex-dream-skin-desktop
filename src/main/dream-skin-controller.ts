@@ -1,4 +1,6 @@
 import { EventEmitter } from 'node:events';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { detectCodex, startCodexTheming, stopCodexTheming } from './codex-bridge';
 import type { DetectResult } from './codex-bridge';
 import { buildCdpPortCandidates, readCodexPlusPlusLaunchStatus } from './codex-plusplus-status';
@@ -16,6 +18,23 @@ const POLL_INTERVAL_MS = 4000;
 // short settle delay so a just-launching Codex has time to expose its CDP
 // endpoint through the normal discovery path first.
 const AUTO_RESTART_SETTLE_MS = 10_000;
+
+const execFileAsync = promisify(execFile);
+
+// The Codex++ launcher writes a stale latest-status.json even when it is not
+// running, so the "waiting for Codex++" state must be gated on the launcher
+// actually being up. Only then is the hint accurate.
+async function isCodexPlusPlusRunning(): Promise<boolean> {
+  try {
+    const { stdout } = await execFileAsync('tasklist', ['/FI', 'IMAGENAME eq codex-plus-plus.exe', '/NH'], {
+      timeout: 3_000,
+      windowsHide: true,
+    });
+    return stdout.includes('codex-plus-plus.exe');
+  } catch {
+    return false;
+  }
+}
 
 export class DreamSkinController extends EventEmitter {
   private connection: CodexConnectionState = { status: 'not-installed' };
@@ -166,12 +185,16 @@ export class DreamSkinController extends EventEmitter {
         this.emitSnapshot();
         return;
       }
-      if (discovered.hasCodexPlusPlusStatus) {
+      if (discovered.hasCodexPlusPlusStatus && await isCodexPlusPlusRunning()) {
         this.connection = { status: 'codexplusplus-not-running', port: discovered.statusPort };
         this.emitSnapshot();
         return;
       }
-      await this.connect(false);
+      // No Codex running and no live Codex++ launcher behind the stale status
+      // file: fall through to the generic not-running state, which offers the
+      // plain "Start Codex" action instead of a misleading Codex++ hint.
+      this.connection = { status: 'not-running' };
+      this.emitSnapshot();
     } finally {
       this.polling = false;
     }

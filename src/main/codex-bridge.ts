@@ -64,30 +64,12 @@ export interface StartResult {
 }
 
 const DEFAULT_PORT = 9335;
-// Codex++ launches the official renderer on its own CDP port. Keep the
-// original Dream Skin port first, then probe the Codex++ default so an
-// already-running Codex++ session can be themed without a second launch.
-export const CDP_PORT_CANDIDATES = [DEFAULT_PORT, 9229] as const;
 
 // bridge.ps1's own comment documents a 15-20s cold-start cost for the
 // Get-NetTCPConnection CIM session on some machines; 10s was tighter than
 // that worst case and produced false "connection error" reports mid-poll.
 export function detectCodex(port = DEFAULT_PORT): Promise<DetectResult> {
   return runPowerShell<DetectResult>(['detect', '-Port', String(port)], 20_000);
-}
-
-export async function detectCodexAny(): Promise<DetectResult> {
-  const results = await Promise.all(CDP_PORT_CANDIDATES.map((port) =>
-    detectCodex(port).catch((error: Error): DetectResult => ({
-      ok: false,
-      installed: true,
-      error: error.message,
-      port,
-    })),
-  ));
-  return results.find((result) => result.cdpActive && result.browserId)
-    ?? results.find((result) => result.running)
-    ?? results[0];
 }
 
 export function startCodexTheming(port = DEFAULT_PORT, restartExisting = false): Promise<StartResult> {

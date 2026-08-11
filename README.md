@@ -8,7 +8,7 @@
 
 ## 它能做什么
 
-- **常驻检测**：轮询 Codex 安装状态与 CDP 调试端口，自动附加到 [Codex++ Lite](https://github.com/star-power0/CodexPlusPlus-no-dream-skin) 启动的 Codex（推荐路径）；旧 CodexBridge 启动的 Codex 仍兼容（自动带调试参数拉起并注入当前主题）。
+- **常驻检测**：轮询 Codex 安装状态与 CDP 调试端口，自动附加到 [Codex++ Lite](https://github.com/star-power0/CodexPlusPlus-no-dream-skin) 启动的 Codex（推荐路径，自带调试端口，直接注入）；手动双击或 CodexBridge 网关启动的 Codex 不带调试端口，应用会自动重启它一次（带调试参数）并注入当前主题，无需手动操作。
 - **系统托盘 + 主窗口画廊**：深色沉浸式卡片界面展示所有已保存主题，点击直接切换,当前使用主题有「正在使用」角标。
 - **实时切换,不用重启 Codex**：主进程直连 Chrome DevTools Protocol，`Runtime.evaluate` 直接把主题 payload 推给 Codex renderer。
 - **可扩展主题库**：主题文件存在 `%LOCALAPPDATA%\CodexDreamSkin\themes\`，跟应用/项目源码完全解耦，装到哪个盘、迁移项目都不受影响。
