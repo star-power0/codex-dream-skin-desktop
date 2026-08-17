@@ -1,5 +1,92 @@
 # Changelog
 
+## 1.2.6 — 2026-08-17（新建任务输入框与顶部菜单栏修复）
+
+### 修复
+
+- 兼容 Codex++ 1.2.45 生成的 `_ApplicationMenuTopBar_*` 顶栏类名，恢复顶层应用菜单的主题半透明底、分隔线和模糊效果，避免壁纸完全透出。
+- 修复新建任务首页 `ComposerLayoutBody` 内层仍沿用宿主白色 surface 的问题；仅在首页将该内层清为透明，显示已经主题化的 `ComposerLayoutRoot` 外壳，不改变普通会话页。
+
+### 测试
+
+- `npm test`：12 个测试通过，包含生成式应用菜单栏和新建任务 composer 回归断言。
+- `npm run lint`：通过。
+- 实机 CDP 检查普通会话与新建任务两态，确认普通会话 composer 保持主题表面。
+
+## 1.2.5 — 2026-08-16（Codex++ 卡片与生成式输入框修复）
+
+### 修复
+
+- 修复 Codex++ 1.2.45 的资源卡、代码块和个人菜单仍沿用宿主白灰 surface 的问题：新版 surface token 仅在会话和覆盖层作用域内映射到当前主题，避免污染其他路由。
+- 将生成式 `ComposerLayoutRoot` 与 `ComposerLayoutFooter` 纳入选择器契约和 `data-ds-part` 标注，现有主题的 composer 背景、阴影、圆角和工具栏颜色重新生效。
+- 移除共享 CSS 对 `body` 的字体强制覆盖，普通会话、卡片和弹窗重新遵循 Codex 原生字体层级；代码内容继续使用原生等宽字体。
+- 保持 1.2.4 的单层壁纸、非宽图壁纸兜底和 `from-surface` / `via-surface` 底部渐变清理。
+
+### 测试
+
+- `npm test`：11 个测试通过，包含生成式 composer 选择器和作用域 token 回归断言。
+- `npm run lint`：通过。
+- 三套内置主题的 Safe CSS 与 payload 校验通过。
+- 实机注入验证桥本有菜、小宵虎南和 Gothic Void Crusade：composer、资源卡、个人菜单均使用主题表面；底部白带不复现。
+
+## 1.2.4 — 2026-08-16（主题壁纸与浅色蒙层回归修复）
+
+### 修复
+
+- 修复部分非宽图主题在 Codex++ 线程页没有壁纸的问题：任务模式不再依赖 `data-dream-art-wide` 才铺设文档壁纸。
+- 恢复桥本有菜等浅色主题原本的轻量可读性蒙层，仅清理 Codex 原生 `from-surface` / `via-surface` 底部渐变，避免白带和整张壁纸发白混在一起。
+- 保留新版 `MainContentSurface`、`MainContentViewport`、`MainContentFrame` 的透明连续性处理，并恢复项目原有的 Codex 字体基线，避免对话框字体被共享 CSS 改变。
+
+### 测试
+
+- `npm test`：10 个测试通过。
+- `npm run lint`：通过。
+- 三套内置主题 payload 与 Safe CSS 校验通过。
+- 实机检查：桥本有菜和非宽图主题均有连续壁纸且人物不重影；深色主题注入 `pass: true`。
+
+## 1.2.3 — 2026-08-16（Codex++ 会话底部渐变修复）
+
+### 修复
+
+- 修复 Codex++ 1.2.45 会话页输入框下方仍出现白色横带的问题。根因是新版底部元素使用 `bg-gradient-to-t from-surface via-surface`，旧规则只匹配 `from-token-main-surface-primary`。
+- 清理新版 `from-surface` / `via-surface` 底部渐变，同时保持桥本有菜壁纸只绘制一层，修复人物重影回归。
+- 实机注入当前 `preset-arina-hashimoto` 主题验证：白带消失，人物不再重影。
+
+### 测试
+
+- `npm test`：10 个测试通过。
+- `npm run lint`：通过。
+- 当前 Codex 9335 renderer 注入检查：`pass: true`，`documentPass: true`，`structurePass: true`。
+- Windows x64 可执行目录已生成到 `out-1.2.3/codex-dream-skin-desktop-win32-x64/`，产物内运行时 CSS 与源码 SHA-256 一致。
+
+## 1.2.2 — 2026-08-16（Codex++ 壁纸连续性修复）
+
+### 修复
+
+- 修复 Codex++ 1.2.45 会话页中对话框旁边和输入框下方出现白色原生 surface、壁纸显示不完整的问题。
+- 将新版 `MainContentSurface`、外层 `main/webview` 宿主、`MainContentViewport` 和 `MainContentFrame` 纳入壁纸连续性处理；设置页仍保持纯色背景。
+- 清除新版线程底部原生渐变，并降低任务遮罩的最终不透明度，避免在壁纸底部形成整条黑/白色横带；不改变浮动顶栏定位和 46px 内容预留。
+
+### 测试
+
+- `npm test`：10 个测试通过，包含新增的共享 CSS 回归断言。
+- `npm run lint`：通过。
+- 三套内置主题的 `injector.mjs --check-payload` 与 `validate-safe-css-file.mjs`：全部通过。
+- Windows x64 可执行目录已重新生成到 `out-1.2.2/codex-dream-skin-desktop-win32-x64/`；旧 `out/` 目录因 Windows 文件占用未覆盖，避免强制删除正在使用的产物。
+
+## 未发布 — 2026-08-11（主题设计技能收敛与契约对齐）
+
+### 修复
+
+- 将权威 `dream-skin-theme-designer` 技能与桌面 App 本地加载器、Safe CSS 白名单和 Codex++ 1.2.45 选择器契约重新对齐：明确区分本地主题、完整设计基线和分发包规则；本地新主题保存后须点击「刷新主题库」才会出现，不再错误宣称目录会自动监听。
+- 技能验证流程新增 `injector.mjs --check-payload`；对比度检查现在将正文、次要文字及已声明的 `accent`/`highlight` 交互色全部作为阻断门槛。无 `colors` 的历史兼容主题明确标为 skipped，不能伪装为新主题通过。
+- 修复 Gothic Void Crusade 实际主题文件与技能历史记录不一致：背景改为 `#0c0b08`、secondary 改为 `#8c6b3a`、highlight 改为 `#b03c33`，highlight 对 panel 的对比度从 `2.18:1` 提升到 `3.07:1`。
+- 在 Codex++ 1.2.45 的同一首页路由逐套实拍本地主题后，只微调了实际存在表面断层的桥本有菜、Exusiai 明亮横幅与三上悠亚。桥本有菜补显式浅色完整配色并移除写死冷粉 header；Exusiai 把暖米灰 `background`/`panel`/`sidebar` 微调为贴合壁纸雾蓝白安全区的冷白蓝；三上悠亚将均匀浅黄米色表面收敛至右侧木质奶咖色温，并移除写死表面背景。三套均保留原壁纸、构图和交互色体系；其余主题未改。
+
+### 说明
+
+- 删除仓库内重复的技能副本，只保留 `C:\Users\huang\.claude\skills\dream-skin-theme-designer` 作为权威技能。该技能引用本仓库 `vendor/` 作为主题格式、payload、Safe CSS 校验器与共享 runtime 的唯一源码，不再需要双向同步。
+
 ## 1.2.1 — 2026-08-11（手动启动 Codex 自动接管换肤）
 
 ### 新增
@@ -160,7 +247,7 @@
 首次公开发布，新增 `LICENSE`（MIT）、`NOTICE.md`（第三方归属与素材权利说明）、`README.md`（架构、使用方法、与上游关系）。
 
 - `themes/`：随仓库带三套主题作为示例——两套上游预设（Cyan Sentinel、Gothic Void Crusade，后者壁纸由社区贡献者 @seansong-ideogram 创作贡献给上游）+ 一套本项目原创（小宵虎南·夜祭冷雅，用下面的 skill 设计）。真人写真、游戏角色等有肖像/版权风险的主题不进仓库。
-- `skills/dream-skin-theme-designer/`：把创建/修改主题用的 Claude Code Skill 一并开源，README 里说明了具体用法和「持续迭代总结、不是一次性规范」的性质。
+- 当时曾将创建/修改主题用的 Claude Code Skill 随仓库发布；后续已收敛为本机权威 Skill，由它直接引用本仓库 `vendor/` 运行时，避免维护双副本。
 
 ### 已知限制
 

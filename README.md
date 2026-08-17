@@ -43,6 +43,10 @@ npm run package   # 生成 out/ 下的可执行目录
 npm run make       # 生成 Windows 安装程序（MakerSquirrel）
 ```
 
+### Codex++ 会话页壁纸说明
+
+`1.2.6` 已适配 Codex++ 1.2.45 的生成式 `MainContentSurface`、`ComposerLayoutRoot` 与 `_ApplicationMenuTopBar_*` 布局。会话页会清理新版 `from-surface` / `via-surface` 底部渐变，壁纸不会在对话框旁边或输入框下方被原生白色横带截断；非宽图主题也会继续铺满壁纸，资源卡、个人菜单、生成式输入框和顶部应用菜单会跟随当前主题表面。新建任务页的 `ComposerLayoutBody` 不再显示宿主白色内层，普通会话文字仍由 Codex 原生字体层级控制，避免人物重影。设置页仍使用主题纯色背景。更新后请完全退出旧版桌面程序，再启动 `out-1.2.6/codex-dream-skin-desktop-win32-x64/codex-dream-skin-desktop.exe`，让新的 `vendor/assets/dream-skin.css` 被重新注入。
+
 ## 架构简述
 
 ```
@@ -55,27 +59,27 @@ src/
 ├── renderer/                    React + TypeScript + Vite，主题画廊 UI
 └── shared/theme-store.ts        读写 %LOCALAPPDATA%\CodexDreamSkin\themes\ 与当前主题指针
 
-vendor/                          原样拷贝自上游项目，未修改（见 NOTICE.md）
+vendor/                          换肤 runtime、payload 和 Safe CSS 校验器的唯一项目源码
+
 themes/                          随仓库自带的示例主题（三套，见下方说明）
-skills/dream-skin-theme-designer/  创建/修改主题用的 Claude Code Skill
 ```
 
 **关键设计**：不像上游项目那样启动一个外部子进程做注入，而是主进程直接持有 CDP WebSocket 连接、直接 `Runtime.evaluate`——没有文件系统或子进程当中间层，切换主题是一次内存内的直推。这次架构选择、以及此前踩过的两个坑（打包后 `RunAsNode` fuse 静默失效、`ws` 包在 Vite 打包后崩溃）都完整记录在 [CHANGELOG.md](./CHANGELOG.md)，供后续维护参考。
 
 ## 主题怎么创建
 
-**不在这个 App 里做可视化「从图片创建主题」的界面**——这是有意为之，不重复造轮子。创建/修改主题走一个独立的 [Claude Code Skill](./skills/dream-skin-theme-designer/)，用 AI 对话的方式完成，产出的三件套（`theme.json` + 背景图 + `theme.css`）直接放进 `%LOCALAPPDATA%\CodexDreamSkin\themes\preset-<slug>\`，这个 App 常驻扫描该目录，新主题会自动出现在画廊里，不需要重启、不需要手动导入。
+**不在这个 App 里做可视化「从图片创建主题」的界面**——这是有意为之，不重复造轮子。创建/修改主题使用本机唯一的 Claude Code Skill：`C:\Users\huang\.claude\skills\dream-skin-theme-designer`。它引用本仓库的 `vendor/` 作为主题格式、payload 与 Safe CSS 校验器的唯一运行时源码；技能本身不再复制进仓库。产出的三件套（`theme.json` + 背景图 + `theme.css`）直接放进 `%LOCALAPPDATA%\CodexDreamSkin\themes\preset-<slug>\`；保存后在 App 主窗口点击「刷新主题库」，新主题就会出现在画廊里，不需要重启或导入。
 
 ### 怎么用这个 Skill
 
-在装有 [Claude Code](https://claude.com/claude-code) 的环境里，把 `skills/dream-skin-theme-designer/` 放进 skills 目录（或直接在有权访问这个仓库的对话里引用它），然后：
+在 Claude Code 环境里直接调用本机的 `dream-skin-theme-designer` Skill，然后：
 
 - **创建新主题**：说"帮我设计一个主题"或"给这张壁纸配色"，给出壁纸绝对路径。如果手头没有现成壁纸，也可以说"我还没有壁纸"，Skill 会先看你提供的参考图，套用构图规则（主体一侧、另一侧留低细节空间，方便侧栏/任务页遮罩），生成一版具体的中文生图提示词，拿去外部 AI 绘图工具生成后再回来继续。
 - **修改现有主题**：说"帮我改一下 xxx 主题"，Skill 会先枚举当前所有主题给你选，再按你的目标（更亮、换壁纸、提高可读性……）做最小必要的修改，改完给一张改动前后对比表。
 
-流程是：实测壁纸像素 → 看懂壁纸内容（主体、氛围、画风) → 按 `theme.json` 的十个配色维度分角色分配颜色（不是照抄壁纸像素）→ 对比度校验 → 写 Safe CSS 并跑校验器 → 落地到主题目录 → 在 App 里实机确认。每一步的具体规则、颜色字段和页面区域的对应关系、已验证过的踩坑经验，都写在 [SKILL.md](./skills/dream-skin-theme-designer/SKILL.md) 里。
+流程是：实测壁纸像素 → 看懂壁纸内容（主体、氛围、画风) → 按 `theme.json` 的十个配色维度分角色分配颜色（不是照抄壁纸像素）→ 对比度校验 → 写 Safe CSS 并跑仓库 `vendor/` 校验器 → 落地到主题目录 → 在 App 里实机确认。具体规则、颜色字段与已验证经验都记录在本机权威技能的 `SKILL.md` 和 `CHANGELOG.md` 中。
 
-**这个 Skill 不是一次性写完的规范，是持续迭代总结出来的**——每次设计新主题、改共享运行时代码遇到的问题和解决方式，都会被沉淀成规则写回 SKILL.md，或者记录进 [skill 自己的 CHANGELOG.md](./skills/dream-skin-theme-designer/CHANGELOG.md)（比如"明度微调等于没调"、"Safe CSS 不能有注释"这类规则，都是踩过坑之后加的），不是靠记忆或者临场发挥。
+**这个 Skill 不是一次性写完的规范，是持续迭代总结出来的**——每次设计新主题、改共享运行时代码遇到的问题和解决方式，都会沉淀到本机权威技能中，而不是复制进项目仓库。
 
 ## 随仓库自带的主题
 
@@ -91,7 +95,7 @@ skills/dream-skin-theme-designer/  创建/修改主题用的 Claude Code Skill
 
 ## 与上游项目的关系
 
-本项目的换肤运行时（`vendor/` 目录）直接拷贝自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)，包括 Codex 检测/启停脚本、Safe CSS 校验器、DOM 选择器契约、注入运行时 CSS/JS，全部未做修改——所有安全关键逻辑（Windows Store 包签名校验、CDP 端口归属校验）都沿用原实现。
+本项目的换肤运行时（`vendor/` 目录）以 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin) 为基础。其中 Codex 检测/启停脚本、Safe CSS 校验器和安全关键逻辑保持上游兼容；DOM 选择器契约和注入运行时会随 Codex++ 版本适配，当前共享 `dream-skin.css` 已包含 `MainContentSurface` 壁纸连续性修复。Windows Store 包签名校验、CDP 端口归属校验等安全关键逻辑仍沿用原实现。
 
 本项目重新实现的部分是**外壳**：把原项目「安装脚本 + 桌面快捷方式」的交互方式，换成常驻 Electron 应用 + 系统托盘 + 主进程直连 CDP 注入。详见 [NOTICE.md](./NOTICE.md) 的完整归属说明和 [CHANGELOG.md](./CHANGELOG.md) 的每一步演进记录。
 

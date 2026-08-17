@@ -89,11 +89,14 @@ html[data-dream-skin="active"][data-dream-shell="light"] {
     rgb(var(--ds-bg-rgb) / .68) 0%,
     rgb(var(--ds-bg-rgb) / .40) 48%,
     rgb(var(--ds-bg-rgb) / .12) 100%);
+  /* Light task art needs a readable wash, but it must not become a second
+     opaque surface at the bottom. The native bottom gradient is cleared below;
+     this remains only the theme's deliberately subtle text-area veil. */
   --ds-task-fade: linear-gradient(180deg,
-    rgb(var(--ds-bg-rgb) / .08) 0%,
-    rgb(var(--ds-bg-rgb) / .22) 34%,
-    rgb(var(--ds-bg-rgb) / .78) 70%,
-    rgb(var(--ds-bg-rgb) / 1) 100%);
+    rgb(var(--ds-bg-rgb) / .06) 0%,
+    rgb(var(--ds-bg-rgb) / .10) 34%,
+    rgb(var(--ds-bg-rgb) / .18) 70%,
+    rgb(var(--ds-bg-rgb) / .28) 100%);
   --ds-task-full-veil: linear-gradient(
     rgb(var(--ds-panel-rgb) / .10),
     rgb(var(--ds-panel-rgb) / .10));
@@ -155,6 +158,42 @@ html[data-dream-skin="active"] {
   --color-token-border-default: var(--ds-line) !important;
 }
 
+/* Codex++ renders resource cards, code blocks, composer controls, and popovers
+   with a newer token family. Scope the bridge to actual task/overlay hosts so
+   those surfaces follow the active skin without changing unrelated routes. */
+html[data-dream-skin="active"]
+  :is(
+    main.main-surface:not(:has([role="main"])),
+    main[class*="MainContentSurface"]:not(:has([role="main"])),
+    [data-ds-part="dialog"],
+    [role="menu"],
+    [data-radix-popper-content-wrapper]
+  ) {
+  --color-text: var(--ds-text) !important;
+  --color-text-secondary: var(--ds-muted) !important;
+  --color-text-tertiary: var(--ds-muted) !important;
+  --color-background-panel: var(--ds-panel) !important;
+  --color-background-surface: var(--ds-bg) !important;
+  --color-background-surface-under: var(--ds-bg) !important;
+  --color-background-control: var(--ds-panel) !important;
+  --color-background-control-opaque: var(--ds-panel) !important;
+  --color-background-elevated-primary: var(--ds-panel) !important;
+  --color-background-elevated-primary-opaque: var(--ds-panel) !important;
+  --color-background-elevated-secondary: var(--ds-panel-2) !important;
+  --color-background-elevated-secondary-opaque: var(--ds-panel-2) !important;
+  --color-background-primary-soft: rgb(var(--ds-panel-rgb) / .92) !important;
+  --color-background-primary-soft-alpha: rgb(var(--ds-panel-rgb) / .10) !important;
+  --color-background-secondary-soft: rgb(var(--ds-panel-2-rgb) / .52) !important;
+  --color-background-secondary-soft-alpha: rgb(var(--ds-panel-2-rgb) / .10) !important;
+  --color-surface: var(--ds-bg) !important;
+  --color-surface-secondary: var(--ds-panel-2) !important;
+  --color-surface-tertiary: var(--ds-bg) !important;
+  --color-surface-elevated: var(--ds-panel) !important;
+  --color-surface-elevated-secondary: var(--ds-panel-2) !important;
+  --color-codex-editor-inline-code-background: var(--ds-panel-2) !important;
+  --color-codex-terminal-background: var(--ds-panel) !important;
+}
+
 html[data-dream-skin="active"][data-dream-workspace-surface="true"]:has(button[aria-label="返回 ChatGPT"]) .main-surface {
   background-color: var(--ds-workspace-surface) !important;
   --color-background-panel: var(--ds-workspace-surface) !important;
@@ -194,6 +233,7 @@ html[data-dream-skin="active"] [class~="bg-token-dropdown-background"] {
 html[data-dream-skin="active"] [class~="bg-token-input-background"] {
   background-color: var(--ds-panel) !important;
 }
+
 
 html[data-dream-skin="active"]:is([data-dream-art-safe="left"], [data-dream-art-safe-area="left"]) {
   --ds-safe-side: left;
@@ -282,11 +322,25 @@ html[data-dream-skin="active"][data-dream-shell="light"]:is([data-dream-art-safe
 html[data-dream-skin="active"] body {
   background: var(--ds-bg) !important;
   color: var(--ds-text) !important;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", "Segoe UI", system-ui, sans-serif !important;
 }
 
 html[data-dream-skin="active"] body::before {
   content: none;
+}
+
+/* Codex++ wraps the visible generated surface in an outer token surface. Keep
+   that host transparent so it cannot cover the wallpaper below the composer;
+   the artwork remains painted only by the visible MainContentSurface. */
+html[data-dream-skin="active"]:not([data-dream-route="settings"])
+  main[class~="bg-token-main-surface-primary"] {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+html[data-dream-skin="active"]:not([data-dream-route="settings"])
+  main[class~="bg-token-main-surface-primary"] > :is(webview, [class~="bg-token-main-surface-primary"]) {
+  background: transparent !important;
+  background-image: none !important;
 }
 
 html[data-dream-skin="active"] aside.app-shell-left-panel {
@@ -417,7 +471,7 @@ html[data-dream-skin="active"]:is([data-dream-task-mode="ambient"], [data-dream-
   height: auto;
 }
 
-html[data-dream-skin="active"]:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]:has(main.main-surface):not(:has(main.main-surface [role="main"])) body {
+html[data-dream-skin="active"]:not([data-dream-route="settings"]):is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"], [data-dream-task-mode="full"], [data-dream-art-task-mode="full"]):has(main.main-surface):not(:has(main.main-surface [role="main"])) body {
   background-image: var(--dream-skin-art) !important;
   background-position: var(--ds-art-position) !important;
   background-size: cover !important;
@@ -425,7 +479,10 @@ html[data-dream-skin="active"]:is([data-dream-task-mode="ambient"], [data-dream-
   background-attachment: fixed !important;
 }
 
-html[data-dream-skin="active"]:is([data-dream-task-mode="full"], [data-dream-art-task-mode="full"])[data-dream-art-wide="true"]:has(main.main-surface):not(:has(main.main-surface [role="main"])) body {
+/* Codex++ task surfaces occupy only the area beside the sidebar. Paint the art
+   once on the document so it remains continuous through the bottom inset; the
+   generated surface below adds veils only and never re-renders the image. */
+html[data-dream-skin="active"]:not([data-dream-route="settings"]):is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"], [data-dream-task-mode="full"], [data-dream-art-task-mode="full"]):has(main[class*="MainContentSurface"]):not(:has(main[class*="MainContentSurface"] [role="main"])) body {
   background-image: var(--dream-skin-art) !important;
   background-position: var(--ds-art-position) !important;
   background-size: cover !important;
@@ -672,9 +729,13 @@ html[data-dream-skin="active"][data-dream-shell="light"]
   text-shadow: none;
 }
 
-/* Windows keeps this native bar outside main; macOS simply has no match. */
-html[data-dream-skin="active"][data-dream-shell="dark"]
-  [class~="group/application-menu-top-bar"] {
+/* Windows keeps this native bar outside main; Codex++ 1.2.45 uses a
+   generated ApplicationMenuTopBar class instead of the older Tailwind group. */
+html[data-dream-skin="active"]
+  :is(
+    [class~="group/application-menu-top-bar"],
+    [class*="ApplicationMenuTopBar"]
+  ) {
   color: var(--ds-text) !important;
   background: rgb(var(--ds-panel-rgb) / .90) !important;
   border-bottom: 1px solid var(--ds-line) !important;
@@ -682,8 +743,11 @@ html[data-dream-skin="active"][data-dream-shell="dark"]
   backdrop-filter: blur(16px) saturate(90%) !important;
 }
 
-html[data-dream-skin="active"][data-dream-shell="dark"]
-  [class~="group/application-menu-top-bar"] :is(button, svg) {
+html[data-dream-skin="active"]
+  :is(
+    [class~="group/application-menu-top-bar"],
+    [class*="ApplicationMenuTopBar"]
+  ) :is(button, svg) {
   color: var(--ds-text) !important;
   text-shadow: 0 1px 2px rgb(var(--ds-bg-rgb) / .82) !important;
 }
@@ -1116,8 +1180,33 @@ html[data-dream-skin="active"]
 
 html[data-dream-skin="active"]
   :is(main[class*="MainContentSurface"], main.main-surface):not(:has([role="main"]))
-  :is(.thread-scroll-container, .app-shell-main-content-frame) {
+  :is(
+    .thread-scroll-container,
+    .app-shell-main-content-frame,
+    [class*="MainContentViewport"],
+    [class*="MainContentFrame"]
+  ) {
   background: transparent !important;
+  background-image: none !important;
+}
+
+/* Codex++ can mount the task viewport outside the legacy scroll container.
+   Clear the full-size token surface wherever it appears under the generated
+   shell, while leaving message cards, composer, and dialogs opaque. */
+html[data-dream-skin="active"]
+  main[class*="MainContentSurface"]:not(:has([role="main"]))
+  [class~="bg-token-main-surface-primary"][class~="h-full"][class~="w-full"] {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+/* The new-task home composer has a generated inner body that keeps the host
+   light surface. Reveal the themed ComposerLayoutRoot behind it only on home. */
+html[data-dream-skin="active"][data-dream-route="home"]
+  :is(main.main-surface, main[class*="MainContentSurface"]):has([role="main"])
+  [class*="ComposerLayoutRoot"] > [class*="ComposerLayoutBody"] {
+  background: transparent !important;
+  background-image: none !important;
 }
 
 /* The generated shell is a task surface when it lacks the home [role="main"]
@@ -1125,10 +1214,10 @@ html[data-dream-skin="active"]
    gradient; otherwise light themes expose a white band and dark themes expose a
    black band beside the conversation content. */
 html[data-dream-skin="active"] main[class*="MainContentSurface"]:not(:has([role="main"]))::before {
-  background-image: var(--ds-task-fade), var(--ds-task-shade), var(--dream-skin-art);
+  background-image: var(--ds-task-fade), var(--ds-task-shade);
   background-repeat: no-repeat;
-  background-position: center, center, var(--ds-art-position);
-  background-size: 100% 100%, 100% 100%, cover;
+  background-position: center, center;
+  background-size: 100% 100%, 100% 100%;
   opacity: .78;
 }
 
@@ -1147,9 +1236,9 @@ html[data-dream-skin="active"]:is([data-dream-task-mode="full"], [data-dream-art
   main[class*="MainContentSurface"]:not(:has([role="main"]))::before {
   inset: 0;
   height: auto;
-  background-image: var(--ds-task-full-veil), var(--dream-skin-art);
-  background-position: center, var(--ds-art-position);
-  background-size: 100% 100%, cover;
+  background-image: var(--ds-task-full-veil);
+  background-position: center;
+  background-size: 100% 100%;
   opacity: 1;
 }
 
@@ -1376,9 +1465,14 @@ html[data-dream-skin="active"] :is(main.main-surface, main[class*="MainContentSu
   opacity: 0 !important;
 }
 
-html[data-dream-skin="active"] :is(main.main-surface, main[class*="MainContentSurface"])
-  .thread-scroll-container .bg-gradient-to-t.from-token-main-surface-primary {
+html[data-dream-skin="active"]
+  :is(main.main-surface, main[class*="MainContentSurface"]):not(:has([role="main"]))
+  .bg-gradient-to-t.from-token-main-surface-primary,
+html[data-dream-skin="active"]
+  :is(main.main-surface, main[class*="MainContentSurface"]):not(:has([role="main"]))
+  [class~="bg-gradient-to-t"][class~="from-surface"][class~="via-surface"] {
   background: transparent !important;
+  background-image: none !important;
 }
 
 html[data-dream-skin="active"] .composer-surface-chrome
