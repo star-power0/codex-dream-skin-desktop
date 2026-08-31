@@ -80,10 +80,17 @@ function isExcludedRoute(route: string | null): boolean {
     || normalized.startsWith('/chatgpt/quick-chat/');
 }
 
+// Codex 26.825 renames the main renderer's title from "Codex" to "ChatGPT",
+// so a title that only matches "codex" drops the one target we must inject
+// into. Both spellings identify the shell window; auxiliary windows such as
+// Settings keep their own titles and stay rejected.
+const PRIMARY_TITLE_PATTERN = /codex|chatgpt/;
+
 export function isPrimaryCodexTarget(target: CdpPageTarget): boolean {
   if (target.type !== 'page' || !target.webSocketDebuggerUrl || !target.url.startsWith('app://')) return false;
   if (isExcludedRoute(initialRoute(target.url))) return false;
-  return target.title?.trim().toLowerCase().includes('codex') ?? false;
+  const title = target.title?.trim().toLowerCase();
+  return title ? PRIMARY_TITLE_PATTERN.test(title) : false;
 }
 
 export function pickPrimaryCodexTarget(targets: CdpPageTarget[]): CdpPageTarget | null {

@@ -42,6 +42,8 @@ test('extracts only a valid browser DevTools ID', () => {
 
 test('selects the normal Codex renderer and rejects auxiliary targets', () => {
   assert.equal(isPrimaryCodexTarget(target()), true);
+  // Codex 26.825 titles the main renderer "ChatGPT" instead of "Codex".
+  assert.equal(isPrimaryCodexTarget(target({ title: 'ChatGPT' })), true);
   assert.equal(isPrimaryCodexTarget(target({ title: 'Settings' })), false);
   assert.equal(isPrimaryCodexTarget(target({ url: 'app://-/index.html?initialRoute=%2Favatar-overlay' })), false);
   assert.equal(isPrimaryCodexTarget(target({ url: 'app://-/index.html?initialRoute=%2Fchatgpt%2Fquick-chat-prewarm' })), false);
