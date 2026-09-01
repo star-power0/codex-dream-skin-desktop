@@ -21,6 +21,12 @@
   const ART = THEME.art && typeof THEME.art === "object" ? THEME.art : {};
   const ART_METADATA = THEME.artMetadata && typeof THEME.artMetadata === "object"
     ? THEME.artMetadata : null;
+  // Optional per-theme shrink of the wallpaper relative to `cover`. Only the
+  // [0.5, 1] range is accepted: the knob exists because cover crops however
+  // much the gap between the art's aspect and the box's demands, and themes
+  // whose art already fits must not be magnified by accident.
+  const ART_ZOOM = typeof ART.zoom === "number" && Number.isFinite(ART.zoom)
+    ? Math.min(1, Math.max(0.5, ART.zoom)) : 1;
   const ANALYSIS_CACHE_KEY = "__CODEX_DREAM_SKIN_ANALYSIS_CACHE__";
   const THEME_VARIABLES = [
     "--ds-bg", "--ds-panel", "--ds-panel-2", "--ds-sidebar", "--ds-workspace-surface", "--ds-green", "--ds-lime",
@@ -372,6 +378,28 @@
     setStyleProperty(root, "--ds-theme-image-focus-y", String(Number(focusY.toFixed(4))));
   };
 
+  // `cover` cannot be scaled from CSS, so the shrunken footprint is computed
+  // here and published as concrete px sizes: one for the fixed-attachment body
+  // painters (their positioning area is the viewport) and one for the ::before
+  // painters (their positioning area is the <main> box). zoom 1 deliberately
+  // sets nothing, so every theme without art.zoom keeps the pure-CSS cover
+  // path down to the last rounding step.
+  const artSizeForBox = (boxWidth, boxHeight) => {
+    const ratio = (artAnalysis || ART_METADATA)?.ratio;
+    if (!Number.isFinite(ratio) || ratio <= 0 || !(boxWidth > 0) || !(boxHeight > 0)) return null;
+    const height = (ratio >= boxWidth / boxHeight ? boxHeight : boxWidth / ratio) * ART_ZOOM;
+    return `${(height * ratio).toFixed(1)}px ${height.toFixed(1)}px`;
+  };
+  const applyArtSize = () => {
+    if (ART_ZOOM === 1) return;
+    const root = document.documentElement;
+    const viewportSize = artSizeForBox(window.innerWidth, window.innerHeight);
+    if (viewportSize) setStyleProperty(root, "--dream-art-viewport-size", viewportSize);
+    const mainRect = document.querySelector("main")?.getBoundingClientRect?.();
+    const mainSize = mainRect ? artSizeForBox(mainRect.width, mainRect.height) : null;
+    if (mainSize) setStyleProperty(root, "--dream-art-main-size", mainSize);
+  };
+
   const analyzeArt = () => new Promise((resolve) => {
     const startedAt = now();
     metrics.analysisRuns += 1;
@@ -572,6 +600,7 @@
     setStyleProperty(root, "--dream-skin-art", `url("${artUrl}")`);
     applyTheme(root, shell);
     applyArtMetadata(root);
+    applyArtSize();
     return shell;
   };
 
@@ -718,6 +747,9 @@
     if (state?.mediaHandler && state?.mediaQuery) {
       try { state.mediaQuery.removeEventListener("change", state.mediaHandler); } catch {}
     }
+    if (state?.resizeHandler && typeof window.removeEventListener === "function") {
+      try { window.removeEventListener("resize", state.resizeHandler); } catch {}
+    }
     if (state?.navigationHandler && state?.navigation) {
       try { state.navigation.removeEventListener("navigate", state.navigationHandler); } catch {}
     }
@@ -776,6 +808,14 @@
     mediaHandler = () => scheduleEnsure({ root: true });
   } catch {}
 
+  let resizeHandler = null;
+  if (ART_ZOOM !== 1 && typeof window.addEventListener === "function") {
+    // The art footprint is published in px, so a window resize must recompute
+    // it or a zoomed theme keeps the old box's size.
+    resizeHandler = () => scheduleEnsure({ root: true }, 120);
+    window.addEventListener("resize", resizeHandler);
+  }
+
   const navigationApi = window.navigation && typeof window.navigation.addEventListener === "function"
     ? window.navigation : null;
   const navigationHandler = navigationApi ? () => {
@@ -792,6 +832,7 @@
     scheduler,
     mediaQuery,
     mediaHandler,
+    resizeHandler,
     navigation: navigationApi,
     navigationHandler,
     artUrl,

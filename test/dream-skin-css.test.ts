@@ -106,3 +106,22 @@ test('themes the sidebar conversation hover preview card', () => {
     /\[class~="bg-surface-elevated-secondary\/90"\] \{[^}]*--color-text-secondary: var\(--ds-muted\) !important;/,
   );
 });
+
+test('scales full-bleed wallpaper layers through the optional art zoom', () => {
+  // art.zoom is opt-in per theme: painters fall back to plain cover until the
+  // injector publishes px sizes computed as cover x zoom for the viewport and
+  // the main box, so themes without the field render exactly as before.
+  assert.match(css, /background-size: 100% 100%, var\(--dream-art-main-size, cover\);/);
+  assert.match(css, /background-size: var\(--dream-art-viewport-size, cover\) !important;/);
+  // Banner strips and the home hero card stay on plain cover by design.
+  assert.doesNotMatch(
+    css,
+    /background-position: center top, center top, var\(--ds-art-position\);\s*background-size: 100% 100%, 100% 100%, var\(--dream-art/,
+  );
+  const rendererPath = path.resolve(__dirname, '..', '..', '..', 'vendor', 'assets', 'renderer-inject.js');
+  const renderer = fs.readFileSync(rendererPath, 'utf8');
+  assert.match(renderer, /ART_ZOOM = typeof ART\.zoom === "number"/);
+  assert.match(renderer, /--dream-art-viewport-size/);
+  assert.match(renderer, /--dream-art-main-size/);
+  assert.match(renderer, /window\.addEventListener\("resize", resizeHandler\)/);
+});

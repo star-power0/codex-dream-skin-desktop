@@ -436,6 +436,12 @@ html[data-dream-skin="active"] main.main-surface {
   box-shadow: -8px 0 28px rgb(var(--ds-bg-rgb) / .18) !important;
 }
 
+/* Full-bleed wallpaper layers size themselves with --dream-art-*-size when a
+   theme opts into `art.zoom` (the injector publishes concrete px sizes computed
+   as cover x zoom against the viewport and the <main> box). Without the field
+   those variables are unset and every painter falls back to plain `cover`, so
+   themes that do not opt in render exactly as before. The banner strips and
+   the home hero card keep `cover`: they are cropped surfaces by design. */
 html[data-dream-skin="active"] main.main-surface:not(:has([role="main"]))::before {
   content: "";
   position: absolute;
@@ -445,7 +451,7 @@ html[data-dream-skin="active"] main.main-surface:not(:has([role="main"]))::befor
   background-image: var(--ds-task-fade), var(--ds-task-shade), var(--dream-skin-art);
   background-repeat: no-repeat;
   background-position: center, center, var(--ds-art-position);
-  background-size: 100% 100%, 100% 100%, cover;
+  background-size: 100% 100%, 100% 100%, var(--dream-art-main-size, cover);
   opacity: .78;
 }
 
@@ -456,7 +462,7 @@ html[data-dream-skin="active"][data-dream-shell="light"] main.main-surface:not(:
 html[data-dream-skin="active"]:is([data-dream-art-wide="true"], [data-dream-art-aspect="wide"], [data-dream-art-aspect="ultrawide"])
   main.main-surface:not(:has([role="main"]))::before {
   background-position: center, center, var(--ds-art-position);
-  background-size: 100% 100%, 100% 100%, cover;
+  background-size: 100% 100%, 100% 100%, var(--dream-art-main-size, cover);
 }
 
 /* Studio's full mode keeps the task artwork at normal strength with only the
@@ -468,7 +474,7 @@ html[data-dream-skin="active"]:is([data-dream-task-mode="full"], [data-dream-art
   height: auto;
   background-image: var(--ds-task-full-veil), var(--dream-skin-art);
   background-position: center, var(--ds-art-position);
-  background-size: 100% 100%, cover;
+  background-size: 100% 100%, var(--dream-art-main-size, cover);
   opacity: 1;
 }
 
@@ -481,7 +487,7 @@ html[data-dream-skin="active"]:is([data-dream-task-mode="ambient"], [data-dream-
 html[data-dream-skin="active"]:not([data-dream-route="settings"]):is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"], [data-dream-task-mode="full"], [data-dream-art-task-mode="full"]):has(main.main-surface):not(:has(main.main-surface [role="main"])) body {
   background-image: var(--dream-skin-art) !important;
   background-position: var(--ds-art-position) !important;
-  background-size: cover !important;
+  background-size: var(--dream-art-viewport-size, cover) !important;
   background-repeat: no-repeat !important;
   background-attachment: fixed !important;
 }
@@ -492,7 +498,7 @@ html[data-dream-skin="active"]:not([data-dream-route="settings"]):is([data-dream
 html[data-dream-skin="active"]:not([data-dream-route="settings"]):is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"], [data-dream-task-mode="full"], [data-dream-art-task-mode="full"]):has(main[class*="MainContentSurface"]):not(:has(main[class*="MainContentSurface"] [role="main"])) body {
   background-image: var(--dream-skin-art) !important;
   background-position: var(--ds-art-position) !important;
-  background-size: cover !important;
+  background-size: var(--dream-art-viewport-size, cover) !important;
   background-repeat: no-repeat !important;
   background-attachment: fixed !important;
 }
@@ -610,7 +616,7 @@ html[data-dream-skin="active"]:is([data-dream-task-mode="banner"], [data-dream-a
   inset: 0;
   height: auto;
   background-position: center, center, var(--ds-art-position);
-  background-size: 100% 100%, 100% 100%, cover;
+  background-size: 100% 100%, 100% 100%, var(--dream-art-main-size, cover);
 }
 
 html[data-dream-skin="active"]:is([data-dream-task-mode="off"], [data-dream-art-task-mode="off"])
@@ -1049,7 +1055,7 @@ html[data-dream-skin="active"] .composer-surface-chrome::before { content: none 
 html[data-dream-skin="active"][data-dream-art-wide="true"]:has(main.main-surface [role="main"]) body {
   background-image: var(--dream-skin-art) !important;
   background-position: var(--ds-art-position) !important;
-  background-size: cover !important;
+  background-size: var(--dream-art-viewport-size, cover) !important;
   background-repeat: no-repeat !important;
   background-attachment: fixed !important;
 }
@@ -1091,7 +1097,7 @@ html[data-dream-skin="active"] :is(main.main-surface, main[class*="MainContentSu
       var(--ds-immersive-far)),
     var(--dream-skin-art);
   background-position: center, var(--ds-art-position);
-  background-size: 100% 100%, cover;
+  background-size: 100% 100%, var(--dream-art-main-size, cover);
   background-repeat: no-repeat;
 }
 
@@ -1170,7 +1176,7 @@ html[data-dream-skin="active"] main[class*="MainContentSurface"]::before {
       var(--ds-immersive-far)),
     var(--dream-skin-art);
   background-position: center, var(--ds-art-position);
-  background-size: 100% 100%, cover;
+  background-size: 100% 100%, var(--dream-art-main-size, cover);
   background-repeat: no-repeat;
 }
 
@@ -1236,7 +1242,7 @@ html[data-dream-skin="active"][data-dream-shell="light"]
 html[data-dream-skin="active"]:is([data-dream-art-wide="true"], [data-dream-art-aspect="wide"], [data-dream-art-aspect="ultrawide"])
   main[class*="MainContentSurface"]:not(:has([role="main"]))::before {
   background-position: center, center, var(--ds-art-position);
-  background-size: 100% 100%, 100% 100%, cover;
+  background-size: 100% 100%, 100% 100%, var(--dream-art-main-size, cover);
 }
 
 html[data-dream-skin="active"]:is([data-dream-task-mode="full"], [data-dream-art-task-mode="full"])

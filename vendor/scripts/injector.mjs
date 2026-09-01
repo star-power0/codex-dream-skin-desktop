@@ -466,6 +466,15 @@ function normalizedChoice(value, name, choices, fallback) {
   return value;
 }
 
+function normalizedZoom(value, name) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0.5 || number > 1) {
+    throw new Error(`${name} must be null or a number between 0.5 and 1`);
+  }
+  return number;
+}
+
 function normalizedText(value, name, fallback, maxLength = 120) {
   if (value === null || value === undefined || value === "") return fallback;
   if (typeof value !== "string" || value.length > maxLength || /[\u0000-\u001f]/.test(value)) {
@@ -582,6 +591,7 @@ export async function loadTheme(themeDir) {
       focusY: normalizedUnit(art.focusY, "art.focusY"),
       safeArea: normalizedChoice(art.safeArea, "art.safeArea", THEME_CHOICES.safeArea, "auto"),
       taskMode: normalizedChoice(art.taskMode, "art.taskMode", THEME_CHOICES.taskMode, "auto"),
+      zoom: normalizedZoom(art.zoom, "art.zoom"),
     },
     colorMode: rawColors ? "explicit" : (paletteAccent ? "explicit" : "auto"),
     explicitColorKeys: rawColors
