@@ -1505,6 +1505,22 @@ html[data-dream-skin="active"] aside[class~="bg-surface"]:not(.app-shell-left-pa
   background: transparent !important;
 }
 
+/* Hovering a sidebar conversation opens a floating preview card straight on
+   the document root. It paints itself with `bg-surface-elevated-secondary/90`,
+   but the elevated-surface bridge is scoped to task hosts, menus and radix
+   wrappers -- none of which contain this portal -- so the token fell back to
+   host white and the card became a white slab over dark themes. Paint it from
+   the skin directly; the ring already follows the theme through the global
+   --color-border bridge, and descendants that pick secondary greys inherit
+   them from here instead of the host palette. */
+html[data-dream-skin="active"] [class~="bg-surface-elevated-secondary/90"] {
+  background: rgb(var(--ds-panel-rgb) / .92) !important;
+  color: var(--ds-text) !important;
+  --color-text-default: var(--ds-text) !important;
+  --color-text-secondary: var(--ds-muted) !important;
+  --color-text-tertiary: var(--ds-muted) !important;
+}
+
 html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]) div:has(> .horizontal-scroll-fade-mask .group\/project-selector) {
   position: relative;
   padding-top: 28px !important;

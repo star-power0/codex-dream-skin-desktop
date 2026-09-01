@@ -86,3 +86,23 @@ test('themes notice banners and their solid accent button', () => {
   assert.match(css, /--color-background-primary-solid: var\(--ds-accent\) !important;/);
   assert.match(css, /--color-text-primary-solid: var\(--ds-on-accent\) !important;/);
 });
+
+test('themes the sidebar conversation hover preview card', () => {
+  // The preview card is a body-level portal painted with the Tailwind alpha
+  // utility `bg-surface-elevated-secondary/90`. The elevated-surface bridge is
+  // scoped to task hosts and menus, so this portal fell back to host white and
+  // turned into a white slab on dark themes.
+  assert.match(
+    css,
+    /\[class~="bg-surface-elevated-secondary\/90"\] \{\n\x20{2}background: rgb\(var\(--ds-panel-rgb\) \/ \.92\) !important;/,
+  );
+  // Card text must pair with the themed panel, whatever the host palette says.
+  assert.match(
+    css,
+    /\[class~="bg-surface-elevated-secondary\/90"\] \{[^}]*--color-text-default: var\(--ds-text\) !important;/,
+  );
+  assert.match(
+    css,
+    /\[class~="bg-surface-elevated-secondary\/90"\] \{[^}]*--color-text-secondary: var\(--ds-muted\) !important;/,
+  );
+});
