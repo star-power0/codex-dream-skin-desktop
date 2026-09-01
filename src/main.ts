@@ -22,6 +22,13 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 function createWindow(): BrowserWindow {
+  // Windows takes the taskbar and title-bar icon from the running executable,
+  // which is the stock electron.exe in dev, so the packaged icon never shows
+  // up there without this option. Packaged builds ship assets/ as an
+  // extraResource; dev resolves it straight from the repo.
+  const windowIconPath = MAIN_WINDOW_VITE_DEV_SERVER_URL
+    ? path.join(__dirname, '..', '..', 'assets', 'icon.ico')
+    : path.join(process.resourcesPath, 'assets', 'icon.ico');
   const window = new BrowserWindow({
     width: 1160,
     height: 760,
@@ -30,6 +37,7 @@ function createWindow(): BrowserWindow {
     show: false,
     backgroundColor: '#15161a',
     autoHideMenuBar: true,
+    icon: fs.existsSync(windowIconPath) ? windowIconPath : undefined,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
