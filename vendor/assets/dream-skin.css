@@ -156,6 +156,13 @@ html[data-dream-skin="active"] {
   --color-token-dropdown-foreground: var(--ds-text) !important;
   --color-token-border: var(--ds-line) !important;
   --color-token-border-default: var(--ds-line) !important;
+  /* The solid-accent button pair resolves through the VS Code bridge:
+     background comes from --color-text-foreground and its label from
+     --color-background-control-opaque. Retinting the foreground above therefore
+     turns the button near-white while its label stays white, which is what made
+     the notice banner's "Try Plus" unreadable. Map the pair onto the accent. */
+  --color-background-primary-solid: var(--ds-accent) !important;
+  --color-text-primary-solid: var(--ds-on-accent) !important;
 }
 
 /* Codex++ renders resource cards, code blocks, composer controls, and popovers
@@ -1478,6 +1485,24 @@ html[data-dream-skin="active"]
 html[data-dream-skin="active"] .composer-surface-chrome
   div[class~="absolute"][class~="inset-0"][class~="-z-10"][class~="bg-token-input-background"] {
   background: var(--ds-panel) !important;
+}
+
+/* Usage/notice banners render as an `aside.bg-surface` plus a `-z-10` soft
+   backdrop, and both resolve to opaque host white. The Codex++ token block only
+   covers hosts without a `[role="main"]`, which the home and thread routes both
+   have, so the banner stayed a white slab over the wallpaper. Whether that read
+   as broken depended only on how bright the art behind it was. Paint it like
+   the other floating home surfaces; the border comes from the already-themed
+   `electron:ring` so the ring is left alone. The sidebar is also an `aside` but
+   never carries `bg-surface` -- exclude it so a future host change cannot
+   repaint the whole left panel. */
+html[data-dream-skin="active"] aside[class~="bg-surface"]:not(.app-shell-left-panel) {
+  background: rgb(var(--ds-panel-rgb) / .92) !important;
+}
+
+html[data-dream-skin="active"] aside[class~="bg-surface"]:not(.app-shell-left-panel)
+  > div[class~="absolute"][class~="inset-0"][class~="-z-10"] {
+  background: transparent !important;
 }
 
 html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]) div:has(> .horizontal-scroll-fade-mask .group\/project-selector) {

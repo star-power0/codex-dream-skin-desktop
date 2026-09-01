@@ -4,7 +4,10 @@ import path from 'node:path';
 import test from 'node:test';
 
 const cssPath = path.resolve(__dirname, '..', '..', '..', 'vendor', 'assets', 'dream-skin.css');
-const css = fs.readFileSync(cssPath, 'utf8');
+// Assertions below anchor on `\n` to pin exact declaration order. The checkout
+// carries CRLF, so normalize once here; otherwise every such anchor silently
+// fails on a detail that has nothing to do with the rule being tested.
+const css = fs.readFileSync(cssPath, 'utf8').replace(/\r\n/g, '\n');
 
 test('uses one wallpaper layer for the generated Codex++ task surface', () => {
   const taskSurface = /main\[class\*="MainContentSurface"\]:not\(:has\(\[role="main"\]\)\)::before \{([\s\S]*?)\n\}/.exec(css)?.[1] ?? '';
@@ -60,4 +63,26 @@ test('keeps generated application chrome and new-task composer themed', () => {
     css,
     /\[data-dream-route="home"\][\s\S]*?\[class\*="ComposerLayoutRoot"\] > \[class\*="ComposerLayoutBody"\] \{[\s\S]*?background: transparent !important;/,
   );
+});
+
+test('themes notice banners and their solid accent button', () => {
+  // Usage banners are an `aside.bg-surface` plus a `-z-10` soft backdrop, both
+  // resolving to opaque host white. The Codex++ token block only covers hosts
+  // without a `[role="main"]`, which home and thread both have, so the banner
+  // stayed a white slab over the wallpaper.
+  assert.match(
+    css,
+    /aside\[class~="bg-surface"\]:not\(\.app-shell-left-panel\) \{\n\x20{2}background: rgb\(var\(--ds-panel-rgb\) \/ \.92\) !important;/,
+  );
+  // The sidebar is an aside too; repainting it would wreck the left panel.
+  assert.doesNotMatch(css, /aside\[class~="bg-surface"\](?!:not\(\.app-shell-left-panel\))/);
+  assert.match(
+    css,
+    /aside\[class~="bg-surface"\]:not\(\.app-shell-left-panel\)\n\x20{2}> div\[class~="absolute"\]\[class~="inset-0"\]\[class~="-z-10"\] \{\n\x20{2}background: transparent !important;/,
+  );
+  // `bg-primary-solid` resolves through the VS Code bridge from
+  // --color-text-foreground, and its label from --color-background-control-opaque.
+  // Retinting the foreground alone left a near-white button with a white label.
+  assert.match(css, /--color-background-primary-solid: var\(--ds-accent\) !important;/);
+  assert.match(css, /--color-text-primary-solid: var\(--ds-on-accent\) !important;/);
 });
