@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.2.7 — 2026-09-02（Codex 26.825 适配、浮层主题化与壁纸缩放）
+
+### 修复
+
+- 适配 Codex 26.825：渲染进程窗口标题从 "Codex" 改为 "ChatGPT" 后，接管器的主目标校验只认 "codex"，CDP 端口正常响应却始终找不到可注入的 renderer。现同时接受两种拼写，辅助窗口（如设置页）仍被拒绝。
+- 修复用量提示横幅（"You're out of usage / Try Plus"）在首页与会话页保持宿主白色的问题：横幅的 `aside.bg-surface` 与 `-z-10` 背板均不在 Codex++ token 桥接作用域内；现按浮层表面主题化，`bg-primary-solid` 按钮经 VS Code 桥接解析出的"白底白字"改为映射到主题强调色。
+- 修复侧栏会话悬停预览卡在深色主题下变成白色半透明板的问题：该卡片以 `bg-surface-elevated-secondary/90` 直接挂在文档根节点，不在任何已桥接容器内；现直接从皮肤取色，文字与次级灰字一并跟随主题。
+- 开发模式下主窗口/任务栏图标不再显示 Electron 默认图标：`BrowserWindow` 显式指向 `assets/icon.ico`（打包版仍走 resources 资源）。
+
+### 新增
+
+- 主题 `art.zoom`（可选，0.5–1）：按主题缩小全幅壁纸相对 `cover` 的绘制尺寸。注入器计算 cover×zoom 的像素尺寸（`--dream-art-viewport-size` / `--dream-art-main-size`）并在窗口尺寸变化时重算；未写该字段的主题走纯 CSS `cover`，渲染逐位不变。横幅条带与首页 hero 卡保持 `cover` 裁切设计。`theme-package-validator` 与注入器同步接受并校验该字段。
+
+### 测试
+
+- `npm test`：15 个测试通过（新增横幅按钮、悬停预览卡、art.zoom 布线断言；测试读取 CSS 时归一化 CRLF，修复两条长期误红的行尾锚定断言）。
+- `npm run lint`：通过。
+- 实机 CDP 验证：ChatGPT 标题渲染进程注入成功；横幅背景为主题面板色、按钮为强调色配可读文字；深色主题悬停预览卡背景 `rgba(52,47,56,.92)`、文字 `rgb(245,245,245)`；深渊青梦 `art.zoom 0.95` 后壁纸以 1448.8×814.9px 绘制，整车入画。
+
 ## 1.2.6 — 2026-08-17（新建任务输入框与顶部菜单栏修复）
 
 ### 修复

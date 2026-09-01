@@ -45,7 +45,9 @@ npm run make       # 生成 Windows 安装程序（MakerSquirrel）
 
 ### Codex++ 会话页壁纸说明
 
-`1.2.6` 已适配 Codex++ 1.2.45 的生成式 `MainContentSurface`、`ComposerLayoutRoot` 与 `_ApplicationMenuTopBar_*` 布局。会话页会清理新版 `from-surface` / `via-surface` 底部渐变，壁纸不会在对话框旁边或输入框下方被原生白色横带截断；非宽图主题也会继续铺满壁纸，资源卡、个人菜单、生成式输入框和顶部应用菜单会跟随当前主题表面。新建任务页的 `ComposerLayoutBody` 不再显示宿主白色内层，普通会话文字仍由 Codex 原生字体层级控制，避免人物重影。设置页仍使用主题纯色背景。更新后请完全退出旧版桌面程序，再启动 `out-1.2.6/codex-dream-skin-desktop-win32-x64/codex-dream-skin-desktop.exe`，让新的 `vendor/assets/dream-skin.css` 被重新注入。
+`1.2.7` 适配 Codex 26.825（渲染进程标题从 Codex 改为 ChatGPT）的自动接管与注入。用量提示横幅、"Try Plus" 按钮和侧栏会话悬停预览卡现在跟随当前主题表面，不再保持宿主白色。壁纸支持按主题缩小：在 `theme.json` 的 `art` 里写 `"zoom": 0.9`（0.5–1，缺省 1），注入器按窗口与主内容区计算 cover×zoom 的精确像素尺寸，并随窗口尺寸变化重算；不写该字段的主题渲染逐位不变，横幅条带与首页 hero 卡不受影响。
+
+`1.2.6` 已适配 Codex++ 1.2.45 的生成式 `MainContentSurface`、`ComposerLayoutRoot` 与 `_ApplicationMenuTopBar_*` 布局。会话页会清理新版 `from-surface` / `via-surface` 底部渐变，壁纸不会在对话框旁边或输入框下方被原生白色横带截断；非宽图主题也会继续铺满壁纸，资源卡、个人菜单、生成式输入框和顶部应用菜单会跟随当前主题表面。新建任务页的 `ComposerLayoutBody` 不再显示宿主白色内层，普通会话文字仍由 Codex 原生字体层级控制，避免人物重影。设置页仍使用主题纯色背景。更新后请完全退出旧版桌面程序，再启动新版解压目录里的 `codex-dream-skin-desktop.exe`，让新的 `vendor/assets/dream-skin.css` 被重新注入。
 
 ## 架构简述
 
